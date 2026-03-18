@@ -87,10 +87,11 @@ export function getDashboardHTML(): string {
     /* ── Layout Grid ───────────────────────────────────────────────────── */
     #app {
       display: grid;
-      grid-template-rows: var(--header-h) 1fr var(--footer-h);
+      grid-template-rows: var(--header-h) 28px 1fr var(--footer-h);
       grid-template-columns: var(--left-w) 1fr var(--right-w);
       grid-template-areas:
         "header  header  header"
+        "ticker  ticker  ticker"
         "left    center  right"
         "footer  footer  footer";
       height: 100vh;
@@ -955,6 +956,189 @@ export function getDashboardHTML(): string {
       0%,100% { opacity: 0.3; }
       50%      { opacity: 0.9; }
     }
+
+    /* ── Live News Ticker ──────────────────────────────────────────────── */
+    #ticker-bar {
+      grid-area: ticker;
+      display: flex;
+      align-items: center;
+      height: 28px;
+      background: linear-gradient(90deg, rgba(0,255,255,0.05) 0%, var(--bg-panel) 10%, var(--bg-panel) 90%, rgba(139,92,246,0.05) 100%);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+      z-index: 100;
+    }
+    .ticker-label {
+      padding: 0 10px;
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: #ff0000;
+      background: rgba(255,0,0,0.1);
+      border-right: 1px solid var(--border);
+      height: 100%;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      animation: pulse-dot 2s infinite;
+    }
+    .ticker-track {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      height: 100%;
+    }
+    .ticker-content {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      white-space: nowrap;
+      animation: ticker-scroll 60s linear infinite;
+      height: 100%;
+      font-size: 0.65rem;
+      color: var(--text-sec);
+    }
+    .ticker-content:hover {
+      animation-play-state: paused;
+    }
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .ticker-item .ti-sev {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .ticker-item .ti-src {
+      color: var(--text-dim);
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .ticker-item .ti-title {
+      color: var(--text-prim);
+      font-weight: 500;
+    }
+    .ticker-item .ti-time {
+      color: var(--text-dim);
+      font-size: 0.55rem;
+    }
+    .ticker-sep {
+      color: var(--border-glow);
+      flex-shrink: 0;
+    }
+    @keyframes ticker-scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ── Markets & Macro ───────────────────────────────────────────────── */
+    .market-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 6px;
+    }
+    .market-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .market-card .mc-name {
+      font-size: 0.58rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .market-card .mc-price {
+      font-size: 0.78rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-prim);
+    }
+    .market-card .mc-change {
+      font-size: 0.6rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .market-card .mc-change.up { color: #22c55e; }
+    .market-card .mc-change.down { color: #ef4444; }
+    .market-card .mc-change.flat { color: var(--text-dim); }
+    .mc-sparkline {
+      width: 100%;
+      height: 20px;
+      margin-top: 2px;
+    }
+    .mc-sparkline polyline {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ── Risk Gauges ───────────────────────────────────────────────────── */
+    .risk-country {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .risk-country:last-child { border-bottom: none; }
+    .rc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .rc-name {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-prim);
+    }
+    .rc-score {
+      font-size: 0.68rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+    .rc-bar-bg {
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .rc-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.8s ease;
+    }
+    .rc-signals {
+      display: flex;
+      gap: 6px;
+      margin-top: 3px;
+      font-size: 0.55rem;
+      color: var(--text-dim);
+    }
+    .rc-trend {
+      font-size: 0.6rem;
+      font-weight: 600;
+    }
+    .rc-trend.rising { color: #ef4444; }
+    .rc-trend.falling { color: #22c55e; }
+    .rc-trend.stable { color: var(--text-dim); }
+
+    /* ── Collapsible sec-body (new-style sections) ─────────────────────── */
+    .sec-body {
+      overflow: hidden;
+      transition: max-height 0.25s ease;
+    }
   </style>
 </head>
 <body>
@@ -1003,6 +1187,18 @@ export function getDashboardHTML(): string {
     <div class="spinner" id="hdr-spinner"></div>
     <span id="hdr-sweep-status" style="font-size:0.64rem;color:var(--text-dim)">Idle</span>
   </header>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!--  TICKER BAR                                                       -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <div id="ticker-bar">
+    <div class="ticker-label">LIVE</div>
+    <div class="ticker-track">
+      <div class="ticker-content" id="ticker-content">
+        Waiting for intelligence data…
+      </div>
+    </div>
+  </div>
 
   <!-- ══════════════════════════════════════════════════════════════════ -->
   <!--  LEFT PANEL — Intelligence Control                                -->
@@ -1086,6 +1282,32 @@ export function getDashboardHTML(): string {
           <button class="btn-trigger" id="btn-sweep-now" onclick="triggerSweep()">
             <span>&#9654;</span> Trigger Sweep
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Markets & Macro -->
+    <div class="panel-section" id="sec-markets">
+      <div class="panel-section-header" onclick="toggleSection('sec-markets')">
+        <span class="panel-section-title">&#128200; Markets &amp; Macro</span>
+        <span class="panel-chevron" id="chev-sec-markets">&#9662;</span>
+      </div>
+      <div class="panel-section-body" id="sec-markets-body">
+        <div id="market-grid" class="market-grid">
+          <div class="empty-state" style="font-size:0.6rem">Loading market data…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Risk Gauges -->
+    <div class="panel-section" id="sec-risk">
+      <div class="panel-section-header" onclick="toggleSection('sec-risk')">
+        <span class="panel-section-title">&#127919; Risk Gauges</span>
+        <span class="panel-chevron" id="chev-sec-risk">&#9662;</span>
+      </div>
+      <div class="panel-section-body" id="sec-risk-body">
+        <div id="risk-gauges">
+          <div class="empty-state" style="font-size:0.6rem">Loading risk data…</div>
         </div>
       </div>
     </div>
@@ -2016,6 +2238,8 @@ export function getDashboardHTML(): string {
         </div>
       \`;
     }).join('');
+
+    renderTicker();
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -2024,6 +2248,159 @@ export function getDashboardHTML(): string {
 
   function renderSummary(text) {
     $('summary-body').innerHTML = \`<div style="white-space:pre-line">\${esc(text)}</div>\`;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Render: Live News Ticker
+  // ═══════════════════════════════════════════════════════════════════
+
+  function renderTicker() {
+    const el = $('ticker-content');
+    if (!el || allItems.length === 0) return;
+
+    // Take latest 30 items
+    const tickerItems = allItems.slice(0, 30);
+    const sevColors = {
+      info:     'var(--sev-info)',
+      low:      'var(--sev-low)',
+      medium:   'var(--sev-medium)',
+      high:     'var(--sev-high)',
+      critical: 'var(--sev-critical)',
+    };
+
+    let html = tickerItems.map((item) => {
+      const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return '<span class="ticker-item">' +
+        '<span class="ti-sev" style="background:' + (sevColors[item.severity] || sevColors.info) + '"></span>' +
+        '<span class="ti-src">' + esc(item.source.replace(/-/g, ' ')) + '</span>' +
+        '<span class="ti-title">' + esc(item.title.substring(0, 80)) + '</span>' +
+        '<span class="ti-time">' + time + '</span>' +
+        '</span><span class="ticker-sep">\u2022</span>';
+    }).join('');
+
+    // Duplicate for seamless loop
+    el.innerHTML = html + html;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Markets & Macro
+  // ═══════════════════════════════════════════════════════════════════
+
+  function buildMiniSparkline(data, changeClass) {
+    if (!data || data.length < 5) return '';
+    // Downsample to 20 points
+    const step = Math.max(1, Math.floor(data.length / 20));
+    const points = [];
+    for (let i = 0; i < data.length; i += step) points.push(data[i]);
+
+    const w = 100, h = 20;
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const range = max - min || 1;
+    const coords = points.map((v, i) => {
+      const x = (i / (points.length - 1)) * w;
+      const y = h - ((v - min) / range) * (h - 2) - 1;
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+
+    const color = changeClass === 'up' ? '#22c55e' : changeClass === 'down' ? '#ef4444' : '#666';
+    return '<svg class="mc-sparkline" viewBox="0 0 ' + w + ' ' + h + '"><polyline points="' + coords + '" stroke="' + color + '"/></svg>';
+  }
+
+  async function fetchMarketData() {
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana,ripple&order=market_cap_desc&sparkline=true&price_change_percentage=24h');
+      if (!res.ok) return;
+      const coins = await res.json();
+
+      const grid = $('market-grid');
+      if (!grid) return;
+
+      let html = '';
+      for (const coin of coins) {
+        const change = coin.price_change_percentage_24h || 0;
+        const changeClass = change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
+        const changeStr = (change > 0 ? '+' : '') + change.toFixed(2) + '%';
+        const sparkData = coin.sparkline_in_7d && coin.sparkline_in_7d.price ? coin.sparkline_in_7d.price : [];
+
+        html += '<div class="market-card">' +
+          '<div class="mc-name">' + esc(coin.symbol.toUpperCase()) + '</div>' +
+          '<div class="mc-price">$' + Number(coin.current_price).toLocaleString(undefined, { maximumFractionDigits: 2 }) + '</div>' +
+          '<div class="mc-change ' + changeClass + '">' + changeStr + '</div>' +
+          buildMiniSparkline(sparkData, changeClass) +
+          '</div>';
+      }
+
+      // Add placeholder cards from economic/market sweep items
+      const economicItems = allItems.filter((i) => i.category === 'economic' || i.category === 'market');
+      for (const item of economicItems.slice(0, 4)) {
+        const match = item.title.match(/([\d.]+)/);
+        const val = match ? match[1] : '\u2014';
+        html += '<div class="market-card">' +
+          '<div class="mc-name">' + esc(item.title.substring(0, 20)) + '</div>' +
+          '<div class="mc-price">' + val + '</div>' +
+          '<div class="mc-change flat">\u2014</div>' +
+          '</div>';
+      }
+
+      if (html) grid.innerHTML = html;
+    } catch (err) {
+      console.debug('Market data fetch failed:', err);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Risk Gauges / CII
+  // ═══════════════════════════════════════════════════════════════════
+
+  async function fetchRiskData() {
+    try {
+      const res = await fetch('/api/v1/analysis/cii');
+      if (!res.ok) return;
+      const countries = await res.json();
+
+      const el = $('risk-gauges');
+      if (!el || !Array.isArray(countries) || countries.length === 0) {
+        if (el) el.innerHTML = '<div class="empty-state" style="font-size:0.6rem">No risk data \u2014 awaiting sweep</div>';
+        return;
+      }
+
+      // Sort by score desc, show top 10
+      const top = countries.sort((a, b) => b.score - a.score).slice(0, 10);
+
+      function riskColor(score) {
+        if (score >= 80) return '#ef4444';
+        if (score >= 60) return '#f97316';
+        if (score >= 40) return '#eab308';
+        if (score >= 20) return '#22c55e';
+        return '#64748b';
+      }
+
+      function trendIcon(trend) {
+        if (trend === 'rising')  return '<span class="rc-trend rising">\u2191 Rising</span>';
+        if (trend === 'falling') return '<span class="rc-trend falling">\u2193 Falling</span>';
+        return '<span class="rc-trend stable">\u2192 Stable</span>';
+      }
+
+      el.innerHTML = top.map((c) => {
+        const color = riskColor(c.score);
+        const signals = c.signals || {};
+        const sigHtml = Object.entries(signals).slice(0, 4).map(([k, v]) =>
+          '<span>' + k.charAt(0).toUpperCase() + k.slice(1) + ':' + v + '</span>'
+        ).join('');
+
+        return '<div class="risk-country">' +
+          '<div class="rc-header">' +
+            '<span class="rc-name">' + esc(c.country) + '</span>' +
+            '<span class="rc-score" style="color:' + color + '">' + c.score + '</span>' +
+          '</div>' +
+          '<div class="rc-bar-bg"><div class="rc-bar" style="width:' + c.score + '%;background:' + color + '"></div></div>' +
+          '<div class="rc-signals">' + sigHtml + trendIcon(c.trend) + '</div>' +
+          '</div>';
+      }).join('');
+    } catch (err) {
+      console.debug('Risk data fetch failed:', err);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -2137,6 +2514,7 @@ export function getDashboardHTML(): string {
       renderFeed();
       renderAlerts();
       updateGlobe();
+      fetchRiskData();
 
     } catch (e) {
       console.error('fetchAll error', e);
@@ -2203,6 +2581,8 @@ export function getDashboardHTML(): string {
     evtSource.addEventListener('sweep', (e) => {
       const result = JSON.parse(e.data);
       onSweepResult(result);
+      renderTicker();
+      fetchRiskData();
     });
 
     evtSource.addEventListener('status', (e) => {
@@ -2272,9 +2652,12 @@ export function getDashboardHTML(): string {
     initGlobe();
     await fetchAll();
     connectSSE();
+    fetchMarketData();
 
     // Periodic refresh every 20s
     setInterval(refreshStatus, 20000);
+    // Market data refresh every 60s
+    setInterval(fetchMarketData, 60000);
   }
 
   boot();
