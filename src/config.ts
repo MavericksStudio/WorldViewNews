@@ -15,6 +15,7 @@ const configSchema = z.object({
 
   // ─── Conflict & Geopolitical ────────────────────────────────────────────────
   ACLED_API_KEY: z.string().optional(),
+  ACLED_EMAIL:   z.string().optional(),
   GDELT_API_KEY: z.string().optional(),
 
   // ─── Aviation ───────────────────────────────────────────────────────────────

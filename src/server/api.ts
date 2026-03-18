@@ -8,8 +8,9 @@ import type { Request, Response } from 'express';
 import { registry } from '../sources/registry.js';
 import { memory } from '../storage/memory.js';
 import { runSweep } from '../engine/sweep.js';
+import { alertManager } from '../engine/alerts.js';
 import { broadcast } from './sse.js';
-import type { Severity, SourceCategory } from '../types.js';
+import type { Severity, SourceCategory, AlertTier } from '../types.js';
 import { logger } from '../logger.js';
 
 const router = Router();
@@ -25,6 +26,7 @@ router.get('/status', (_req: Request, res: Response) => {
     sourceCount: registry.getAll().length,
     itemCount: memory.getAllItems().length,
     lastSweepAt: latest?.completedAt ?? null,
+    alertStats: alertManager.getStats(),
   });
 });
 
@@ -94,6 +96,33 @@ router.post('/sweep/trigger', async (_req: Request, res: Response) => {
     logger.error('api: manual sweep failed', { err: err instanceof Error ? err.message : String(err) });
     res.status(500).json({ error: 'Sweep failed.' });
   }
+});
+
+// ─── GET /api/v1/alerts ───────────────────────────────────────────────────────
+
+router.get('/alerts', (req: Request, res: Response) => {
+  const { tier, limit } = req.query;
+
+  const limitN = typeof limit === 'string' ? parseInt(limit, 10) : 50;
+  const safeLimit = !isNaN(limitN) && limitN > 0 ? limitN : 50;
+
+  if (typeof tier === 'string' && tier.length > 0) {
+    const tierUpper = tier.toUpperCase() as AlertTier;
+    if (!['FLASH', 'PRIORITY', 'ROUTINE'].includes(tierUpper)) {
+      res.status(400).json({ error: 'Invalid tier. Must be FLASH, PRIORITY, or ROUTINE.' });
+      return;
+    }
+    res.json(alertManager.getByTier(tierUpper).slice(0, safeLimit));
+    return;
+  }
+
+  res.json(alertManager.getRecent(safeLimit));
+});
+
+// ─── GET /api/v1/alerts/stats ─────────────────────────────────────────────────
+
+router.get('/alerts/stats', (_req: Request, res: Response) => {
+  res.json(alertManager.getStats());
 });
 
 export { router as apiRouter };

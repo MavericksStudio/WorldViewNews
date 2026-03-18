@@ -391,6 +391,73 @@ export function getDashboardHTML(): string {
       text-align: center;
       font-style: italic;
     }
+
+    /* ── Alerts panel ─────────────────────────────────────────────────── */
+    #alerts-panel {
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+    }
+    #alerts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    #alerts-header .ph { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--red); }
+    #alert-count { font-size: 0.62rem; color: var(--text-dim); }
+
+    #alerts-list {
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .alert-item {
+      padding: 7px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.68rem;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .alert-item:hover { background: var(--bg-hover); }
+
+    .alert-item.flash    { border-left: 3px solid var(--red); }
+    .alert-item.priority { border-left: 3px solid var(--orange); }
+    .alert-item.routine  { border-left: 3px solid #4488ff; }
+
+    .alert-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .tier-badge {
+      font-size: 0.55rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .tier-badge.flash    { background: rgba(255,34,68,0.2);  color: var(--red);    border: 1px solid var(--red); }
+    .tier-badge.priority { background: rgba(255,136,0,0.2);  color: var(--orange); border: 1px solid var(--orange); }
+    .tier-badge.routine  { background: rgba(68,136,255,0.15);color: #4488ff;       border: 1px solid #224488; }
+
+    .alert-title  { font-size: 0.7rem; color: var(--text-prim); font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .alert-reason { font-size: 0.62rem; color: var(--text-sec); margin-top: 1px; }
+    .alert-time   { font-size: 0.6rem; color: var(--text-dim); }
+
+    @keyframes flash-pulse {
+      0%,100% { background: rgba(255,34,68,0.05); }
+      50%      { background: rgba(255,34,68,0.18); }
+    }
+    .alert-item.flash { animation: flash-pulse 1.5s ease-in-out 3; }
+
+    /* ── Footer alert stat ─────────────────────────────────────────────── */
+    #ft-alerts { }
   </style>
 </head>
 <body>
@@ -462,6 +529,15 @@ export function getDashboardHTML(): string {
 
   <!-- ── Right Sidebar ──────────────────────────────────────────────── -->
   <aside id="right-sidebar">
+    <div id="alerts-panel">
+      <div id="alerts-header">
+        <span class="ph">Alerts</span>
+        <span id="alert-count">0 alerts</span>
+      </div>
+      <div id="alerts-list">
+        <div class="empty-state">No alerts yet.</div>
+      </div>
+    </div>
     <div id="feed-header">
       <span class="ph">Live Intelligence Feed</span>
       <span id="feed-count">0 items</span>
@@ -489,6 +565,10 @@ export function getDashboardHTML(): string {
       <span class="footer-label">SSE Clients</span>
       <span class="footer-value" id="ft-clients">—</span>
     </div>
+    <div class="footer-stat">
+      <span class="footer-label">Alerts</span>
+      <span class="footer-value" id="ft-alerts">0</span>
+    </div>
     <div id="sweep-progress">
       <span id="ft-status">Initialising…</span>
       <div class="spinner" id="spinner"></div>
@@ -505,6 +585,7 @@ export function getDashboardHTML(): string {
   // ── State ────────────────────────────────────────────────────────────
   let allItems    = [];
   let allSources  = [];
+  let allAlerts   = [];
   let activeCategory = 'all';
   let activeSeverities = new Set(['info','low','medium','high','critical']);
   let globe       = null;
@@ -651,6 +732,42 @@ export function getDashboardHTML(): string {
     \`).join('');
   }
 
+  // ── Alerts ────────────────────────────────────────────────────────────
+  function renderAlerts() {
+    const el = $('alerts-list');
+    $('alert-count').textContent = allAlerts.length + ' alert' + (allAlerts.length !== 1 ? 's' : '');
+    $('ft-alerts').textContent = allAlerts.length;
+
+    if (!allAlerts.length) {
+      el.innerHTML = '<div class="empty-state">No alerts yet.</div>';
+      return;
+    }
+
+    el.innerHTML = allAlerts.slice(0, 50).map(alert => {
+      const tier = alert.tier.toLowerCase();
+      const change = alert.change;
+      const item = change.item;
+      return \`
+        <div class="alert-item \${tier}" onclick="this.classList.toggle('expanded')">
+          <div class="alert-top">
+            <span class="tier-badge \${tier}">\${alert.tier}</span>
+            <span class="alert-title">\${item.title}</span>
+          </div>
+          <div class="alert-reason">\${change.reason}</div>
+          <div class="alert-time">\${timeAgo(alert.createdAt)} · \${item.source}</div>
+        </div>
+      \`;
+    }).join('');
+  }
+
+  function addAlert(alert) {
+    // Prepend new alert (most recent first); deduplicate by id
+    if (allAlerts.some(a => a.id === alert.id)) return;
+    allAlerts.unshift(alert);
+    if (allAlerts.length > 200) allAlerts = allAlerts.slice(0, 200);
+    renderAlerts();
+  }
+
   // ── Feed ──────────────────────────────────────────────────────────────
   function renderFeed() {
     const items = filteredItems().slice().reverse();
@@ -717,18 +834,22 @@ export function getDashboardHTML(): string {
   // ── Data fetching ─────────────────────────────────────────────────────
   async function fetchAll() {
     try {
-      const [itemsRes, sourcesRes, statusRes] = await Promise.all([
+      const [itemsRes, sourcesRes, statusRes, alertsRes] = await Promise.all([
         fetch('/api/v1/items'),
         fetch('/api/v1/sources'),
         fetch('/api/v1/status'),
+        fetch('/api/v1/alerts?limit=50'),
       ]);
       allItems   = await itemsRes.json();
       allSources = await sourcesRes.json();
       const status = await statusRes.json();
+      const alertsData = await alertsRes.json();
+      allAlerts  = Array.isArray(alertsData) ? alertsData : [];
 
       updateStatus(status);
       renderSources();
       renderFeed();
+      renderAlerts();
       updateGlobe();
 
       const avail = allSources.filter(s => s.available).length;
@@ -773,6 +894,11 @@ export function getDashboardHTML(): string {
     evtSource.addEventListener('status', e => {
       const data = JSON.parse(e.data);
       updateStatus(data);
+    });
+
+    evtSource.addEventListener('alert', e => {
+      const alert = JSON.parse(e.data);
+      addAlert(alert);
     });
 
     evtSource.addEventListener('error', () => {

@@ -1,14 +1,24 @@
 /**
  * WorldViewNews — Entry Point
- * Wires together the sweep engine, HTTP server, SSE, and scheduler.
+ * Wires together the sweep engine, HTTP server, SSE, delta engine, and alert manager.
  */
 
 // ── Side-effect imports (source self-registration) ──────────────────────────
 import './sources/environment/usgs.js';
 import './sources/environment/firms.js';
+import './sources/environment/radiation.js';
 import './sources/news/rss.js';
 import './sources/space/satellites.js';
 import './sources/weather/openmeteo.js';
+import './sources/conflict/acled.js';
+import './sources/conflict/gdelt.js';
+import './sources/conflict/ucdp.js';
+import './sources/aviation/opensky.js';
+import './sources/maritime/ais.js';
+import './sources/economic/fred.js';
+import './sources/economic/eia.js';
+import './sources/market/finnhub.js';
+import './sources/market/coingecko.js';
 
 // ── Core imports ──────────────────────────────────────────────────────────────
 import { config }          from './config.js';
@@ -16,8 +26,11 @@ import { logger }          from './logger.js';
 import { registry }        from './sources/registry.js';
 import { runSweep }        from './engine/sweep.js';
 import { startScheduler, stopScheduler } from './engine/scheduler.js';
+import { deltaEngine }     from './engine/delta.js';
+import { alertManager }    from './engine/alerts.js';
 import { createServer }    from './server/http.js';
 import { broadcast }       from './server/sse.js';
+import type { SweepResult } from './types.js';
 
 // ── Banner ────────────────────────────────────────────────────────────────────
 logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -38,9 +51,46 @@ logger.info('sources: registered', {
 const { start } = createServer();
 const httpServer = start(config.PORT);
 
+// ── Previous sweep state for delta engine ────────────────────────────────────
+let previousSweep: SweepResult | undefined;
+
+/** Run a sweep, apply delta analysis, process alerts, broadcast SSE events. */
+async function runSweepWithDelta(): Promise<SweepResult> {
+  const result = await runSweep();
+
+  // Delta analysis
+  const changes = deltaEngine.analyze(result, previousSweep);
+  previousSweep = result;
+
+  if (changes.length > 0) {
+    logger.info('delta: changes detected', { count: changes.length });
+
+    // Process through alert manager (rate limiting + cooldowns)
+    const alerts = alertManager.process(changes);
+
+    if (alerts.length > 0) {
+      const stats = alertManager.getStats();
+      logger.info('alerts: alerts created', {
+        new:      alerts.length,
+        total:    stats.total,
+        flash:    stats.flash,
+        priority: stats.priority,
+        routine:  stats.routine,
+      });
+
+      // Broadcast each alert via SSE
+      for (const alert of alerts) {
+        broadcast('alert', alert);
+      }
+    }
+  }
+
+  return result;
+}
+
 // ── First sweep (immediate) ───────────────────────────────────────────────────
 logger.info('sweep: running initial sweep…');
-runSweep()
+runSweepWithDelta()
   .then((result) => {
     logger.info('sweep: initial sweep complete', {
       items:   result.items.length,
@@ -55,9 +105,6 @@ runSweep()
   });
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────
-// The scheduler fires its own initial sweep — we skip that here by passing
-// a custom interval and wrapping runSweep to broadcast results.
-// We drive the scheduler with a wrapper that broadcasts after each sweep.
 const INTERVAL_MS = config.SWEEP_INTERVAL_MS;
 
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
@@ -67,16 +114,18 @@ async function scheduledSweep(): Promise<void> {
   if (sweepInFlight) return;
   sweepInFlight = true;
   try {
-    const result = await runSweep();
+    const result = await runSweepWithDelta();
     broadcast('sweep', result);
 
-    // Also broadcast an updated status payload
+    // Broadcast an updated status payload
     const { memory } = await import('./storage/memory.js');
+    const alertStats = alertManager.getStats();
     broadcast('status', {
       sweepCount:  memory.getAll().length,
       itemCount:   memory.getAllItems().length,
       sourceCount: registry.getAll().length,
       lastSweepAt: result.completedAt,
+      alertStats,
     });
   } catch (err) {
     logger.error('scheduler: sweep error', {
