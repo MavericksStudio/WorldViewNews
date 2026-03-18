@@ -20,6 +20,15 @@ import './sources/economic/eia.js';
 import './sources/market/finnhub.js';
 import './sources/market/coingecko.js';
 
+// ── Side-effect imports (LLM provider self-registration) ─────────────────────
+import './llm/providers/ollama.js';
+import './llm/providers/anthropic.js';
+import './llm/providers/openai.js';
+import './llm/providers/gemini.js';
+import './llm/providers/openrouter.js';
+import './llm/providers/codex.js';
+import './llm/providers/minimax.js';
+
 // ── Core imports ──────────────────────────────────────────────────────────────
 import { config }          from './config.js';
 import { logger }          from './logger.js';
@@ -32,6 +41,9 @@ import { createServer }    from './server/http.js';
 import { broadcast }       from './server/sse.js';
 import { startTelegram, stopTelegram, sendAlert as telegramSendAlert } from './bots/telegram.js';
 import { startDiscord,  stopDiscord,  sendAlert as discordSendAlert  } from './bots/discord.js';
+import { llmRegistry }     from './llm/registry.js';
+import { summarizeSweep }  from './llm/summarizer.js';
+import { summaryStore }    from './storage/summaryStore.js';
 import type { SweepResult } from './types.js';
 
 // ── Banner ────────────────────────────────────────────────────────────────────
@@ -91,6 +103,23 @@ async function runSweepWithDelta(): Promise<SweepResult> {
         void discordSendAlert(alert);
       }
     }
+  }
+
+  // LLM summarization (non-blocking, best-effort)
+  if (llmRegistry.isAnyAvailable()) {
+    summarizeSweep(result)
+      .then((summary) => {
+        if (summary !== null) {
+          summaryStore.store({ sweepId: result.sweepId, summary, generatedAt: new Date() });
+          broadcast('summary', { sweepId: result.sweepId, summary });
+          logger.info('llm: sweep summary generated', { sweepId: result.sweepId });
+        }
+      })
+      .catch((err) => {
+        logger.warn('llm: sweep summary error', {
+          err: err instanceof Error ? err.message : String(err),
+        });
+      });
   }
 
   return result;

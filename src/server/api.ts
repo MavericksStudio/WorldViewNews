@@ -10,6 +10,11 @@ import { memory } from '../storage/memory.js';
 import { runSweep } from '../engine/sweep.js';
 import { alertManager } from '../engine/alerts.js';
 import { broadcast } from './sse.js';
+import { summaryStore } from '../storage/summaryStore.js';
+import { findCorrelations } from '../analysis/correlation.js';
+import { calculateCII } from '../analysis/cii.js';
+import { generateTradeIdeas } from '../analysis/trade-ideas.js';
+import { llmRegistry } from '../llm/registry.js';
 import type { Severity, SourceCategory, AlertTier } from '../types.js';
 import { logger } from '../logger.js';
 
@@ -123,6 +128,77 @@ router.get('/alerts', (req: Request, res: Response) => {
 
 router.get('/alerts/stats', (_req: Request, res: Response) => {
   res.json(alertManager.getStats());
+});
+
+// ─── GET /api/v1/summary/latest ───────────────────────────────────────────────
+
+router.get('/summary/latest', (_req: Request, res: Response) => {
+  const latest = summaryStore.getLatest();
+  if (!latest) {
+    res.status(404).json({
+      error: 'No summary available yet.',
+      llmAvailable: llmRegistry.isAnyAvailable(),
+    });
+    return;
+  }
+  res.json(latest);
+});
+
+// ─── GET /api/v1/analysis/correlations ────────────────────────────────────────
+
+router.get('/analysis/correlations', (_req: Request, res: Response) => {
+  const items = memory.getAllItems();
+  const correlations = findCorrelations(items);
+  res.json({
+    count: correlations.length,
+    correlations,
+    computedAt: new Date().toISOString(),
+    itemsAnalyzed: items.length,
+  });
+});
+
+// ─── GET /api/v1/analysis/cii ─────────────────────────────────────────────────
+
+router.get('/analysis/cii', (_req: Request, res: Response) => {
+  const items = memory.getAllItems();
+  const scores = calculateCII(items);
+  res.json({
+    count: scores.length,
+    scores,
+    computedAt: new Date().toISOString(),
+    itemsAnalyzed: items.length,
+  });
+});
+
+// ─── GET /api/v1/analysis/trade-ideas ─────────────────────────────────────────
+
+router.get('/analysis/trade-ideas', async (_req: Request, res: Response) => {
+  if (!llmRegistry.isAnyAvailable()) {
+    res.status(503).json({
+      error: 'No LLM provider available. Configure at least one LLM API key to enable trade ideas.',
+      availableProviders: llmRegistry.getAvailable().map((p) => p.id),
+    });
+    return;
+  }
+
+  const items = memory.getAllItems();
+
+  try {
+    const ideas = await generateTradeIdeas(items);
+    res.json({
+      count: ideas.length,
+      ideas,
+      disclaimer:
+        'DISCLAIMER: This is AI-generated analysis for informational purposes only. ' +
+        'It is NOT financial advice. Do not make investment decisions based solely on this output.',
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.error('api: trade ideas generation failed', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: 'Trade ideas generation failed.' });
+  }
 });
 
 export { router as apiRouter };
