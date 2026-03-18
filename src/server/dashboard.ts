@@ -416,6 +416,185 @@ export function getDashboardHTML(): string {
       height: 100%;
     }
 
+    /* ── Live News panel ───────────────────────────────────────────────── */
+    #livenews-wrap {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      background: var(--bg-deep);
+    }
+
+    .ln-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+    }
+
+    .ln-ch-btn {
+      padding: 4px 10px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-sec);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ln-ch-btn:hover { color: var(--text-prim); border-color: var(--cyan-dim); }
+    .ln-ch-btn.active { color: var(--cyan); border-color: var(--cyan); background: rgba(0,255,255,0.08); }
+
+    .ln-player {
+      flex: 1;
+      position: relative;
+    }
+    .ln-player iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: none;
+    }
+
+    /* ── Webcams panel ──────────────────────────────────────────────────── */
+    #webcams-wrap {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      background: var(--bg-deep);
+    }
+
+    .wc-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+    }
+
+    .wc-regions {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    .wc-region-btn {
+      padding: 4px 10px;
+      font-size: 0.62rem;
+      font-weight: 600;
+      color: var(--text-sec);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .wc-region-btn:hover { color: var(--text-prim); border-color: var(--cyan-dim); }
+    .wc-region-btn.active { color: var(--cyan); border-color: var(--cyan); background: rgba(0,255,255,0.08); }
+
+    .wc-view-btns {
+      display: flex;
+      gap: 4px;
+    }
+    .wc-view-btn {
+      padding: 4px 8px;
+      font-size: 0.62rem;
+      font-weight: 600;
+      color: var(--text-sec);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .wc-view-btn.active { color: var(--cyan); border-color: var(--cyan); }
+
+    .wc-content {
+      flex: 1;
+      position: relative;
+    }
+
+    .wc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 2px;
+      height: 100%;
+    }
+
+    .wc-cell {
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+    .wc-cell iframe {
+      width: 100%; height: 100%;
+      border: none;
+    }
+    .wc-cell-label {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 4px 8px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .wc-live-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #ff0000;
+      animation: pulse-dot 2s infinite;
+    }
+
+    .wc-single {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .wc-single-player {
+      flex: 1;
+      position: relative;
+    }
+    .wc-single-player iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: none;
+    }
+    .wc-switcher {
+      display: flex;
+      gap: 4px;
+      padding: 6px 8px;
+      overflow-x: auto;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+    }
+    .wc-feed-btn {
+      padding: 3px 8px;
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--text-sec);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .wc-feed-btn:hover { color: var(--text-prim); }
+    .wc-feed-btn.active { color: var(--cyan); border-color: var(--cyan); }
+
     /* ── Floating mini-stats overlay ───────────────────────────────────── */
     #map-stats {
       position: absolute;
@@ -922,6 +1101,8 @@ export function getDashboardHTML(): string {
     <div id="map-tabs">
       <div class="map-tab active" id="tab-globe" onclick="switchMap('globe')">&#127760; 3D Globe</div>
       <div class="map-tab" id="tab-map" onclick="switchMap('map')">&#128507; 2D Map</div>
+      <div class="map-tab" id="tab-livenews" onclick="switchMap('livenews')">&#128250; Live News</div>
+      <div class="map-tab" id="tab-webcams" onclick="switchMap('webcams')">&#128247; Webcams</div>
     </div>
 
     <!-- Globe -->
@@ -933,6 +1114,31 @@ export function getDashboardHTML(): string {
     <!-- Leaflet 2D map -->
     <div id="map-wrap">
       <div id="leaflet-map"></div>
+    </div>
+
+    <!-- Live News TV -->
+    <div id="livenews-wrap">
+      <div class="ln-toolbar" id="ln-toolbar"></div>
+      <div class="ln-player" id="ln-player"></div>
+    </div>
+
+    <!-- Live Webcams -->
+    <div id="webcams-wrap">
+      <div class="wc-toolbar">
+        <div class="wc-regions">
+          <button class="wc-region-btn active" data-region="middle-east">Middle East</button>
+          <button class="wc-region-btn" data-region="europe">Europe</button>
+          <button class="wc-region-btn" data-region="americas">Americas</button>
+          <button class="wc-region-btn" data-region="asia">Asia</button>
+          <button class="wc-region-btn" data-region="space">Space</button>
+          <button class="wc-region-btn" data-region="all">All</button>
+        </div>
+        <div class="wc-view-btns">
+          <button class="wc-view-btn active" data-view="grid">&#9726; Grid</button>
+          <button class="wc-view-btn" data-view="single">&#9654; Single</button>
+        </div>
+      </div>
+      <div class="wc-content" id="wc-content"></div>
     </div>
 
     <!-- Floating stats overlay -->
@@ -1087,6 +1293,65 @@ export function getDashboardHTML(): string {
   const MAX_MEMORY_ITEMS = 500;
 
   // ═══════════════════════════════════════════════════════════════════
+  //  Live News Channels
+  // ═══════════════════════════════════════════════════════════════════
+
+  const LIVE_CHANNELS = [
+    { id: 'bloomberg', name: 'Bloomberg', handle: '@markets', videoId: 'iEpJwprxDdk' },
+    { id: 'sky', name: 'Sky News', handle: '@SkyNews', videoId: 'uvviIF4725I' },
+    { id: 'euronews', name: 'Euronews', handle: '@euronews', videoId: 'pykpO5kQJ98' },
+    { id: 'dw', name: 'DW News', handle: '@DWNews', videoId: 'LuKwFajn37U' },
+    { id: 'cnbc', name: 'CNBC', handle: '@CNBC', videoId: '9NyxcX3rhQs' },
+    { id: 'cnn', name: 'CNN', handle: '@CNN', videoId: 'w_Ma8oQLmSM' },
+    { id: 'france24', name: 'France 24', handle: '@FRANCE24', videoId: 'u9foWyMSETk' },
+    { id: 'alarabiya', name: 'Al Arabiya', handle: '@AlArabiya', videoId: 'n7eQejkXbnM' },
+    { id: 'aljazeera', name: 'Al Jazeera', handle: '@AlJazeeraEnglish', videoId: 'gCNeDWCI0vo' },
+    { id: 'bbc', name: 'BBC News', handle: '@BBCNews', videoId: 'bjgQzJzCZKs' },
+    { id: 'fox', name: 'Fox News', handle: '@FoxNews', videoId: 'QaftgYkG-ek' },
+    { id: 'abc', name: 'ABC News', handle: '@ABCNews', videoId: 'R9L8sDK8iEc' },
+    { id: 'nbc', name: 'NBC News', handle: '@NBCNews', videoId: 'yMr0neQhu6c' },
+    { id: 'wion', name: 'WION', handle: '@WION', videoId: '' },
+    { id: 'ndtv', name: 'NDTV', handle: '@NDTV', videoId: '' },
+    { id: 'nhk', name: 'NHK World', handle: '@NHKWORLDJAPAN', videoId: 'f0lYfG_vY_U' },
+    { id: 'trt', name: 'TRT World', handle: '@TRTWorld', videoId: 'ABfFhWzWs0s' },
+    { id: 'india-today', name: 'India Today', handle: '@indiatoday', videoId: 'sYZtOFzM78M' },
+  ];
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Webcam Feeds
+  // ═══════════════════════════════════════════════════════════════════
+
+  const WEBCAM_FEEDS = [
+    // Middle East
+    { id: 'tehran', city: 'Tehran', country: 'Iran', region: 'middle-east', videoId: '-zGuR1qVKrU' },
+    { id: 'tel-aviv', city: 'Tel Aviv', country: 'Israel', region: 'middle-east', videoId: 'gmtlJ_m2r5A' },
+    { id: 'jerusalem', city: 'Jerusalem', country: 'Israel', region: 'middle-east', videoId: 'UyduhBUpO7Q' },
+    { id: 'mecca', city: 'Mecca', country: 'Saudi Arabia', region: 'middle-east', videoId: 'Cm1v4bteXbI' },
+    { id: 'beirut', city: 'Beirut', country: 'Lebanon', region: 'middle-east', videoId: 'djF-Lkgfp6k' },
+    // Europe
+    { id: 'kyiv', city: 'Kyiv', country: 'Ukraine', region: 'europe', videoId: '-Q7FuPINDjA' },
+    { id: 'odessa', city: 'Odessa', country: 'Ukraine', region: 'europe', videoId: 'e2gC37ILQmk' },
+    { id: 'paris', city: 'Paris', country: 'France', region: 'europe', videoId: 'OzYp4NRZlwQ' },
+    { id: 'st-petersburg', city: 'St. Petersburg', country: 'Russia', region: 'europe', videoId: 'CjtIYbmVfck' },
+    { id: 'london', city: 'London', country: 'UK', region: 'europe', videoId: 'Lxqcg1qt0XU' },
+    // Americas
+    { id: 'washington', city: 'Washington DC', country: 'USA', region: 'americas', videoId: '1wV9lLe14aU' },
+    { id: 'new-york', city: 'New York', country: 'USA', region: 'americas', videoId: '4qyZLflp-sI' },
+    { id: 'los-angeles', city: 'Los Angeles', country: 'USA', region: 'americas', videoId: 'EO_1LWqsCNE' },
+    { id: 'miami', city: 'Miami', country: 'USA', region: 'americas', videoId: '5YCajRjvWCg' },
+    // Asia
+    { id: 'taipei', city: 'Taipei', country: 'Taiwan', region: 'asia', videoId: 'z_fY1pj1VBw' },
+    { id: 'shanghai', city: 'Shanghai', country: 'China', region: 'asia', videoId: '76EwqI5XZIc' },
+    { id: 'tokyo', city: 'Tokyo', country: 'Japan', region: 'asia', videoId: '4pu9sF5Qssw' },
+    { id: 'seoul', city: 'Seoul', country: 'South Korea', region: 'asia', videoId: '-JhoMGoAfFc' },
+    { id: 'sydney', city: 'Sydney', country: 'Australia', region: 'asia', videoId: '7pcL-0Wo77U' },
+    // Space
+    { id: 'iss', city: 'ISS Earth View', country: 'Space', region: 'space', videoId: 'vytmBNhc9ig' },
+    { id: 'nasa-tv', city: 'NASA TV', country: 'Space', region: 'space', videoId: 'zPH5KtjJFaQ' },
+    { id: 'spacex', city: 'SpaceX', country: 'Space', region: 'space', videoId: 'fO9e9jnhYK8' },
+  ];
+
+  // ═══════════════════════════════════════════════════════════════════
   //  State
   // ═══════════════════════════════════════════════════════════════════
 
@@ -1108,6 +1373,16 @@ export function getDashboardHTML(): string {
   let leafletMap     = null;
   let leafletMarkers = null; // L.LayerGroup
   let leafletReady   = false;
+
+  // Live News state
+  let liveNewsInited  = false;
+  let currentChannel  = null;
+
+  // Webcams state
+  let webcamsInited  = false;
+  let wcRegion       = 'middle-east';
+  let wcView         = 'grid';
+  let wcActiveFeed   = null;
 
   // ═══════════════════════════════════════════════════════════════════
   //  DOM Helpers
@@ -1199,23 +1474,28 @@ export function getDashboardHTML(): string {
   //  Map mode switching
   // ═══════════════════════════════════════════════════════════════════
 
-  function switchMap(mode) {
-    currentMapMode = mode;
+  function switchMap(view) {
+    currentMapMode = view;
 
-    if (mode === 'globe') {
-      $('globe-wrap').style.display = 'block';
-      $('map-wrap').style.display   = 'none';
-      $('map-hint').textContent     = 'Drag to rotate \u00b7 Scroll to zoom';
-      $('tab-globe').classList.add('active');
-      $('tab-map').classList.remove('active');
-    } else {
-      $('globe-wrap').style.display = 'none';
-      $('map-wrap').style.display   = 'block';
-      $('map-hint').textContent     = 'Click markers for details';
-      $('tab-globe').classList.remove('active');
-      $('tab-map').classList.add('active');
+    // Show/hide all view containers
+    $('globe-wrap').style.display      = view === 'globe'    ? ''     : 'none';
+    $('map-wrap').style.display        = view === 'map'      ? 'flex' : 'none';
+    $('livenews-wrap').style.display   = view === 'livenews' ? 'flex' : 'none';
+    $('webcams-wrap').style.display    = view === 'webcams'  ? 'flex' : 'none';
 
-      // Initialise Leaflet lazily
+    // Keep map-hint visible only for globe/map views
+    if ($('map-hint')) {
+      $('map-hint').style.display = (view === 'globe' || view === 'map') ? '' : 'none';
+      if (view === 'globe') $('map-hint').textContent = 'Drag to rotate \u00b7 Scroll to zoom';
+      if (view === 'map')   $('map-hint').textContent = 'Click markers for details';
+    }
+
+    // Update tab active states
+    document.querySelectorAll('.map-tab').forEach(t => t.classList.remove('active'));
+    $('tab-' + view).classList.add('active');
+
+    // Lazy init for Leaflet
+    if (view === 'map') {
       if (!leafletReady) {
         initLeaflet();
       } else {
@@ -1223,6 +1503,14 @@ export function getDashboardHTML(): string {
         updateLeaflet();
       }
     }
+
+    // Lazy init for live panels
+    if (view === 'livenews') { initLiveNews(); }
+    if (view === 'webcams')  { initWebcams(); }
+
+    // Destroy iframes when leaving live tabs to save bandwidth
+    if (view !== 'livenews') { destroyLiveNews(); }
+    if (view !== 'webcams')  { destroyWebcams(); }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -1416,6 +1704,167 @@ export function getDashboardHTML(): string {
 
       circle.bindPopup(popupHtml);
       leafletMarkers.addLayer(circle);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Live News TV
+  // ═══════════════════════════════════════════════════════════════════
+
+  function initLiveNews() {
+    if (!liveNewsInited) {
+      // Build channel buttons
+      const toolbar = $('ln-toolbar');
+      toolbar.innerHTML = '';
+      LIVE_CHANNELS.forEach(ch => {
+        const btn = document.createElement('button');
+        btn.className = 'ln-ch-btn';
+        btn.textContent = ch.name;
+        btn.dataset.id = ch.id;
+        btn.onclick = () => loadChannel(ch);
+        toolbar.appendChild(btn);
+      });
+    }
+    // Load first channel (or reload current)
+    loadChannel(currentChannel || LIVE_CHANNELS[0]);
+    liveNewsInited = true;
+  }
+
+  function loadChannel(ch) {
+    currentChannel = ch;
+    const player = $('ln-player');
+    player.innerHTML = '';
+
+    if (ch.videoId) {
+      const iframe = document.createElement('iframe');
+      iframe.src = 'https://www.youtube.com/embed/' + ch.videoId + '?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0';
+      iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+      iframe.allowFullscreen = true;
+      player.appendChild(iframe);
+    } else {
+      player.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-sec);font-size:0.8rem;">Stream unavailable \u2014 no video ID</div>';
+    }
+
+    // Update active button
+    document.querySelectorAll('.ln-ch-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.id === ch.id);
+    });
+  }
+
+  function destroyLiveNews() {
+    const player = $('ln-player');
+    if (player) {
+      player.querySelectorAll('iframe').forEach(f => { f.src = 'about:blank'; f.remove(); });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Live Webcams
+  // ═══════════════════════════════════════════════════════════════════
+
+  function initWebcams() {
+    if (!webcamsInited) {
+      renderWebcamToolbar();
+      webcamsInited = true;
+    }
+    renderWebcams();
+  }
+
+  function renderWebcamToolbar() {
+    // Regions already in HTML, bind clicks
+    document.querySelectorAll('.wc-region-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        wcRegion = btn.dataset.region;
+        document.querySelectorAll('.wc-region-btn').forEach(b => b.classList.toggle('active', b.dataset.region === wcRegion));
+        wcActiveFeed = null;
+        renderWebcams();
+      });
+    });
+    document.querySelectorAll('.wc-view-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        wcView = btn.dataset.view;
+        document.querySelectorAll('.wc-view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === wcView));
+        renderWebcams();
+      });
+    });
+  }
+
+  function getFilteredFeeds() {
+    if (wcRegion === 'all') return WEBCAM_FEEDS;
+    return WEBCAM_FEEDS.filter(f => f.region === wcRegion);
+  }
+
+  function buildYTEmbed(videoId) {
+    return 'https://www.youtube.com/embed/' + videoId + '?autoplay=1&mute=1&controls=0&modestbranding=1&playsinline=1&rel=0';
+  }
+
+  function renderWebcams() {
+    const content = $('wc-content');
+    content.innerHTML = '';
+    const feeds = getFilteredFeeds();
+    if (feeds.length === 0) {
+      content.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-sec)">No webcams for this region</div>';
+      return;
+    }
+
+    if (wcView === 'grid') {
+      const grid = document.createElement('div');
+      grid.className = 'wc-grid';
+      feeds.slice(0, 4).forEach(feed => {
+        const cell = document.createElement('div');
+        cell.className = 'wc-cell';
+        cell.style.cursor = 'pointer';
+        cell.onclick = () => { wcView = 'single'; wcActiveFeed = feed; document.querySelectorAll('.wc-view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === 'single')); renderWebcams(); };
+        if (feed.videoId) {
+          const iframe = document.createElement('iframe');
+          iframe.src = buildYTEmbed(feed.videoId);
+          iframe.allow = 'autoplay; encrypted-media';
+          cell.appendChild(iframe);
+        }
+        const label = document.createElement('div');
+        label.className = 'wc-cell-label';
+        label.innerHTML = '<span class="wc-live-dot"></span>' + esc(feed.city.toUpperCase());
+        cell.appendChild(label);
+        grid.appendChild(cell);
+      });
+      content.appendChild(grid);
+    } else {
+      // Single view
+      const active = wcActiveFeed || feeds[0];
+      wcActiveFeed = active;
+      const single = document.createElement('div');
+      single.className = 'wc-single';
+
+      const player = document.createElement('div');
+      player.className = 'wc-single-player';
+      if (active.videoId) {
+        const iframe = document.createElement('iframe');
+        iframe.src = buildYTEmbed(active.videoId);
+        iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+        iframe.allowFullscreen = true;
+        player.appendChild(iframe);
+      }
+      single.appendChild(player);
+
+      const switcher = document.createElement('div');
+      switcher.className = 'wc-switcher';
+      feeds.forEach(feed => {
+        const btn = document.createElement('button');
+        btn.className = 'wc-feed-btn' + (feed.id === active.id ? ' active' : '');
+        btn.textContent = feed.city;
+        btn.onclick = () => { wcActiveFeed = feed; renderWebcams(); };
+        switcher.appendChild(btn);
+      });
+      single.appendChild(switcher);
+      content.appendChild(single);
+    }
+  }
+
+  function destroyWebcams() {
+    const content = $('wc-content');
+    if (content) {
+      content.querySelectorAll('iframe').forEach(f => { f.src = 'about:blank'; f.remove(); });
+      content.innerHTML = '';
     }
   }
 
@@ -1681,7 +2130,7 @@ export function getDashboardHTML(): string {
       }
       if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
         const s = await summaryRes.value.json();
-        if (s && s.text) renderSummary(s.text);
+        if (s && s.summary) renderSummary(s.summary);
       }
 
       renderSources();
@@ -1769,7 +2218,7 @@ export function getDashboardHTML(): string {
 
     evtSource.addEventListener('summary', (e) => {
       const data = JSON.parse(e.data);
-      if (data && data.text) renderSummary(data.text);
+      if (data && data.summary) renderSummary(data.summary);
     });
 
     evtSource.addEventListener('error', () => {
