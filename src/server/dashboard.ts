@@ -1,7 +1,7 @@
 /**
  * Inline HTML dashboard for WorldViewNews.
  * Returns a single self-contained HTML string — no build step required.
- * globe.gl and three.js are loaded from CDN.
+ * globe.gl, three.js, and Leaflet are loaded from CDN.
  */
 
 export function getDashboardHTML(): string {
@@ -12,44 +12,62 @@ export function getDashboardHTML(): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WorldViewNews — Global Intelligence Monitor</title>
 
-  <!-- three.js (required by globe.gl) -->
-  <script src="https://unpkg.com/three@0.167.1/build/three.min.js"></script>
-  <!-- globe.gl -->
-  <script src="https://unpkg.com/globe.gl@2.31.1/dist/globe.gl.min.js"></script>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
-    /* ── Reset & Variables ────────────────────────────────────────────── */
+    /* ── Reset & Variables ─────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg-deep:    #040410;
-      --bg-panel:   #0a0a1e;
-      --bg-card:    #0f0f2a;
-      --bg-hover:   #141435;
-      --border:     #1e1e4a;
-      --border-glow:#2a2a6a;
-      --text-prim:  #e2e8f0;
-      --text-sec:   #8892a4;
-      --text-dim:   #4a5568;
+      --bg-deep:      #0a0a1a;
+      --bg-panel:     #111127;
+      --bg-card:      #161630;
+      --bg-hover:     #1c1c3a;
+      --border:       #1e1e4a;
+      --border-glow:  #2e2e6a;
+      --text-prim:    #e2e8f0;
+      --text-sec:     #8892a4;
+      --text-dim:     #4a5568;
 
-      --cyan:       #00d4ff;
-      --cyan-dim:   #007a99;
-      --green:      #00ff88;
-      --green-dim:  #007a44;
-      --yellow:     #ffd600;
-      --orange:     #ff8800;
-      --red:        #ff2244;
-      --purple:     #b44aff;
+      --cyan:         #00ffff;
+      --cyan-dim:     #006a6a;
+      --cyan-glow:    rgba(0,255,255,0.15);
+      --purple:       #8b5cf6;
+      --purple-dim:   #4c1d95;
+      --purple-glow:  rgba(139,92,246,0.15);
+      --green:        #00ff00;
+      --green-dim:    #004400;
+      --yellow:       #ffff00;
+      --yellow-dim:   #666600;
+      --orange:       #ff8800;
+      --orange-dim:   #663500;
+      --red:          #ff0000;
+      --red-dim:      #660000;
+      --blue:         #4488ff;
 
-      --sev-info:     var(--cyan);
-      --sev-low:      var(--green);
-      --sev-medium:   var(--yellow);
-      --sev-high:     var(--orange);
-      --sev-critical: var(--red);
+      /* Category colours */
+      --cat-conflict:    #ef4444;
+      --cat-aviation:    #3b82f6;
+      --cat-maritime:    #06b6d4;
+      --cat-environment: #22c55e;
+      --cat-economic:    #f59e0b;
+      --cat-market:      #a855f7;
+      --cat-space:       #6366f1;
+      --cat-news:        #64748b;
+      --cat-weather:     #0ea5e9;
 
-      --header-h:  52px;
-      --footer-h:  40px;
-      --sidebar-w: 260px;
+      /* Severity colours */
+      --sev-info:     #00ffff;
+      --sev-low:      #00ff00;
+      --sev-medium:   #ffff00;
+      --sev-high:     #ff8800;
+      --sev-critical: #ff0000;
+
+      --header-h:   52px;
+      --footer-h:   40px;
+      --left-w:     280px;
+      --right-w:    320px;
     }
 
     html, body {
@@ -60,123 +78,389 @@ export function getDashboardHTML(): string {
       overflow: hidden;
     }
 
-    /* ── Scrollbars ───────────────────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: var(--bg-panel); }
+    /* ── Custom Scrollbars ─────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border-glow); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--cyan-dim); }
 
-    /* ── Layout ───────────────────────────────────────────────────────── */
+    /* ── Layout Grid ───────────────────────────────────────────────────── */
     #app {
       display: grid;
       grid-template-rows: var(--header-h) 1fr var(--footer-h);
-      grid-template-columns: var(--sidebar-w) 1fr var(--sidebar-w);
+      grid-template-columns: var(--left-w) 1fr var(--right-w);
       grid-template-areas:
         "header  header  header"
-        "left    globe   right"
+        "left    center  right"
         "footer  footer  footer";
       height: 100vh;
+      min-width: 1280px;
     }
 
-    /* ── Header ───────────────────────────────────────────────────────── */
+    /* ── Header ────────────────────────────────────────────────────────── */
     #header {
       grid-area: header;
       display: flex;
       align-items: center;
-      gap: 16px;
-      padding: 0 20px;
+      gap: 12px;
+      padding: 0 16px;
       background: var(--bg-panel);
       border-bottom: 1px solid var(--border);
-      z-index: 100;
+      z-index: 200;
+      backdrop-filter: blur(8px);
     }
 
     .logo {
-      font-size: 1.05rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--cyan);
-      text-shadow: 0 0 20px rgba(0,212,255,0.6);
+      text-shadow: 0 0 24px rgba(0,255,255,0.7), 0 0 48px rgba(0,255,255,0.3);
       white-space: nowrap;
+      flex-shrink: 0;
     }
-    .logo span { color: var(--text-prim); }
+    .logo span { color: var(--text-prim); text-shadow: none; }
 
-    .header-divider { flex: 1; }
+    .hdr-sep {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
 
-    .status-pill {
+    .hdr-pill {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      letter-spacing: 0.04em;
       color: var(--text-sec);
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 20px;
-      padding: 4px 10px;
+      padding: 3px 10px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
+    .hdr-pill .label { color: var(--text-dim); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .hdr-pill .value { color: var(--text-prim); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .hdr-pill .value.cyan   { color: var(--cyan); }
+    .hdr-pill .value.orange { color: var(--orange); }
+    .hdr-pill .value.red    { color: var(--red); }
 
+    .hdr-spacer { flex: 1; }
+
+    /* ── Status Dot ────────────────────────────────────────────────────── */
     .dot {
       width: 7px; height: 7px;
       border-radius: 50%;
       background: var(--text-dim);
+      flex-shrink: 0;
     }
-    .dot.online  { background: var(--green);  box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
-    .dot.warning { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
-    .dot.offline { background: var(--red);    box-shadow: 0 0 6px var(--red); }
+    .dot.online   { background: var(--green);  box-shadow: 0 0 8px var(--green); animation: pulse-dot 2s infinite; }
+    .dot.warning  { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+    .dot.offline  { background: var(--red);    box-shadow: 0 0 8px var(--red); animation: pulse-dot 1s infinite; }
 
-    @keyframes pulse {
-      0%,100% { opacity:1; } 50% { opacity:0.4; }
+    @keyframes pulse-dot {
+      0%,100% { opacity:1; } 50% { opacity:0.35; }
     }
 
-    /* ── Left Sidebar ─────────────────────────────────────────────────── */
-    #left-sidebar {
+    /* ── Sweep spinner ─────────────────────────────────────────────────── */
+    .spinner {
+      width: 12px; height: 12px;
+      border: 1.5px solid var(--border-glow);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+    .spinner.active { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Left Panel ────────────────────────────────────────────────────── */
+    #left-panel {
       grid-area: left;
       background: var(--bg-panel);
       border-right: 1px solid var(--border);
       overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-
-    /* ── Right Sidebar ────────────────────────────────────────────────── */
-    #right-sidebar {
-      grid-area: right;
-      background: var(--bg-panel);
-      border-left: 1px solid var(--border);
-      overflow-y: auto;
+      overflow-x: hidden;
       display: flex;
       flex-direction: column;
     }
 
-    /* ── Globe container ──────────────────────────────────────────────── */
-    #globe-container {
-      grid-area: globe;
-      background: radial-gradient(ellipse at center, #050520 0%, var(--bg-deep) 100%);
+    /* ── Panel Section ─────────────────────────────────────────────────── */
+    .panel-section {
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .panel-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px 7px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.12s;
+    }
+    .panel-section-header:hover { background: var(--bg-hover); }
+
+    .panel-section-title {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cyan);
+    }
+
+    .panel-section-title.purple { color: var(--purple); }
+
+    .panel-chevron {
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+    }
+    .panel-section.collapsed .panel-chevron { transform: rotate(-90deg); }
+
+    .panel-section-body {
+      overflow: hidden;
+      transition: max-height 0.25s ease;
+    }
+    .panel-section.collapsed .panel-section-body { max-height: 0 !important; }
+
+    /* ── Source list ───────────────────────────────────────────────────── */
+    .source-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.68rem;
+    }
+    .source-item:last-child { border-bottom: none; }
+    .src-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .src-dot.ok  { background: var(--green); box-shadow: 0 0 4px var(--green); }
+    .src-dot.off { background: var(--text-dim); }
+    .source-name { flex: 1; color: var(--text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .source-cat  {
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 1px 4px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* ── Filter grids ──────────────────────────────────────────────────── */
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 8px 12px 10px;
+    }
+
+    .filter-btn {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover { border-color: var(--cyan-dim); color: var(--text-sec); }
+    .filter-btn.active {
+      background: var(--cyan-glow);
+      border-color: var(--cyan-dim);
+      color: var(--cyan);
+    }
+
+    /* Category-specific active colours */
+    .filter-btn[data-cat="conflict"].active  { background: rgba(239,68,68,0.12);  border-color: #7f1d1d; color: var(--cat-conflict); }
+    .filter-btn[data-cat="aviation"].active  { background: rgba(59,130,246,0.12); border-color: #1e3a5f; color: var(--cat-aviation); }
+    .filter-btn[data-cat="maritime"].active  { background: rgba(6,182,212,0.12);  border-color: #164e57; color: var(--cat-maritime); }
+    .filter-btn[data-cat="environment"].active { background: rgba(34,197,94,0.12); border-color: #14532d; color: var(--cat-environment); }
+    .filter-btn[data-cat="economic"].active  { background: rgba(245,158,11,0.12); border-color: #78350f; color: var(--cat-economic); }
+    .filter-btn[data-cat="market"].active    { background: rgba(168,85,247,0.12); border-color: #4c1d95; color: var(--cat-market); }
+    .filter-btn[data-cat="space"].active     { background: rgba(99,102,241,0.12); border-color: #312e81; color: var(--cat-space); }
+    .filter-btn[data-cat="news"].active      { background: rgba(100,116,139,0.12);border-color: #334155; color: var(--cat-news); }
+    .filter-btn[data-cat="weather"].active   { background: rgba(14,165,233,0.12); border-color: #0c4a6e; color: var(--cat-weather); }
+
+    /* ── Severity buttons ──────────────────────────────────────────────── */
+    .sev-btn {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+      opacity: 0.4;
+    }
+    .sev-btn.active { opacity: 1; }
+    .sev-btn[data-sev="info"]     { color: var(--sev-info);     border-color: var(--cyan-dim);    background: rgba(0,255,255,0.08); }
+    .sev-btn[data-sev="low"]      { color: var(--sev-low);      border-color: var(--green-dim);   background: rgba(0,255,0,0.08); }
+    .sev-btn[data-sev="medium"]   { color: var(--sev-medium);   border-color: var(--yellow-dim);  background: rgba(255,255,0,0.08); }
+    .sev-btn[data-sev="high"]     { color: var(--sev-high);     border-color: var(--orange-dim);  background: rgba(255,136,0,0.08); }
+    .sev-btn[data-sev="critical"] { color: var(--sev-critical); border-color: var(--red-dim);     background: rgba(255,0,0,0.08); }
+
+    /* ── Sweep control ─────────────────────────────────────────────────── */
+    .sweep-body {
+      padding: 8px 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .sweep-info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: var(--text-sec);
+    }
+    .sweep-info-row .key  { color: var(--text-dim); text-transform: uppercase; font-size: 0.58rem; letter-spacing: 0.05em; }
+    .sweep-info-row .val  { color: var(--text-sec); font-variant-numeric: tabular-nums; }
+    .sweep-info-row .val.active { color: var(--cyan); }
+
+    .btn-trigger {
+      width: 100%;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, rgba(0,255,255,0.1), rgba(139,92,246,0.1));
+      border: 1px solid var(--cyan-dim);
+      border-radius: 5px;
+      color: var(--cyan);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-trigger:hover {
+      background: linear-gradient(135deg, rgba(0,255,255,0.2), rgba(139,92,246,0.2));
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px rgba(0,255,255,0.2);
+    }
+    .btn-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Center (Map area) ─────────────────────────────────────────────── */
+    #center {
+      grid-area: center;
       position: relative;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(ellipse at center, #060620 0%, var(--bg-deep) 100%);
       overflow: hidden;
     }
 
+    /* ── Map tab bar ───────────────────────────────────────────────────── */
+    #map-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,26,0.85);
+      backdrop-filter: blur(8px);
+      z-index: 50;
+      flex-shrink: 0;
+    }
+    .map-tab {
+      padding: 7px 16px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .map-tab:hover { color: var(--text-sec); }
+    .map-tab.active {
+      color: var(--cyan);
+      border-bottom-color: var(--cyan);
+    }
+
+    /* ── Globe container ───────────────────────────────────────────────── */
+    #globe-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
     #globe-el {
       width: 100%;
       height: 100%;
     }
 
-    .globe-overlay {
+    /* ── Leaflet map container ─────────────────────────────────────────── */
+    #map-wrap {
+      flex: 1;
+      position: relative;
+      display: none;
+    }
+    #leaflet-map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Floating mini-stats overlay ───────────────────────────────────── */
+    #map-stats {
       position: absolute;
-      bottom: 12px;
+      bottom: 14px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 0.65rem;
+      display: flex;
+      gap: 12px;
+      background: rgba(10,10,26,0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-glow);
+      border-radius: 20px;
+      padding: 5px 16px;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .map-stat {
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .map-stat .ms-val {
+      font-weight: 700;
+      color: var(--text-sec);
+      font-variant-numeric: tabular-nums;
+    }
+    .map-stat .ms-val.cyan { color: var(--cyan); }
+
+    #map-hint {
+      position: absolute;
+      bottom: 44px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.6rem;
       color: var(--text-dim);
       letter-spacing: 0.1em;
       text-transform: uppercase;
       pointer-events: none;
+      z-index: 50;
+      white-space: nowrap;
     }
 
-    /* ── Tooltip ──────────────────────────────────────────────────────── */
+    /* ── Tooltip ───────────────────────────────────────────────────────── */
     #tooltip {
       position: fixed;
       display: none;
@@ -184,246 +468,79 @@ export function getDashboardHTML(): string {
       border: 1px solid var(--border-glow);
       border-radius: 8px;
       padding: 10px 14px;
-      max-width: 280px;
-      z-index: 999;
+      max-width: 300px;
+      z-index: 1000;
       pointer-events: none;
-      box-shadow: 0 0 20px rgba(0,100,200,0.3);
+      box-shadow: 0 0 24px rgba(0,100,200,0.25), 0 4px 16px rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
     }
-    #tooltip .tt-title { font-size: 0.8rem; font-weight: 700; color: var(--text-prim); margin-bottom: 4px; }
-    #tooltip .tt-meta  { font-size: 0.68rem; color: var(--text-sec); margin-bottom: 6px; }
-    #tooltip .tt-desc  { font-size: 0.72rem; color: var(--text-sec); line-height: 1.45; }
+    #tooltip .tt-sev   { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+    #tooltip .tt-title { font-size: 0.8rem; font-weight: 700; color: var(--text-prim); margin-bottom: 4px; line-height: 1.3; }
+    #tooltip .tt-meta  { font-size: 0.66rem; color: var(--text-sec); margin-bottom: 6px; }
+    #tooltip .tt-desc  { font-size: 0.7rem; color: var(--text-sec); line-height: 1.5; }
 
-    /* ── Panel headers ────────────────────────────────────────────────── */
-    .panel-header {
-      padding: 10px 14px 8px;
-      font-size: 0.62rem;
+    /* ── Right Panel ───────────────────────────────────────────────────── */
+    #right-panel {
+      grid-area: right;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Alerts section ────────────────────────────────────────────────── */
+    #alerts-section {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-bottom: 1px solid var(--border);
+      max-height: 240px;
+    }
+
+    .right-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px 6px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .right-section-title {
+      font-size: 0.6rem;
       font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--cyan);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
     }
-
-    /* ── Source list ──────────────────────────────────────────────────── */
-    #sources-list {
-      flex-shrink: 0;
-    }
-    .source-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 14px;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.7rem;
-    }
-    .source-name { flex: 1; color: var(--text-sec); }
-    .source-cat  { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; }
-    .src-dot     { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .src-dot.ok  { background: var(--green); box-shadow: 0 0 4px var(--green); }
-    .src-dot.off { background: var(--text-dim); }
-
-    /* ── Category filters ─────────────────────────────────────────────── */
-    #filters {
-      flex-shrink: 0;
-    }
-    .filter-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      padding: 10px 14px;
-    }
-    .filter-btn {
-      font-size: 0.62rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      padding: 3px 8px;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-      background: var(--bg-card);
-      color: var(--text-sec);
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .filter-btn:hover { border-color: var(--cyan-dim); color: var(--cyan); }
-    .filter-btn.active { background: rgba(0,212,255,0.12); border-color: var(--cyan); color: var(--cyan); }
-
-    /* ── Severity filter ──────────────────────────────────────────────── */
-    #sev-filters {
-      flex-shrink: 0;
-    }
-    .sev-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      padding: 8px 14px 12px;
-    }
-    .sev-btn {
-      font-size: 0.62rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      padding: 3px 8px;
-      border-radius: 4px;
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: all 0.15s;
-      opacity: 0.5;
-    }
-    .sev-btn.active { opacity: 1; }
-    .sev-btn[data-sev="info"]     { color: var(--cyan);   border-color: var(--cyan-dim);  background: rgba(0,212,255,0.08); }
-    .sev-btn[data-sev="low"]      { color: var(--green);  border-color: var(--green-dim); background: rgba(0,255,136,0.08); }
-    .sev-btn[data-sev="medium"]   { color: var(--yellow); border-color: #665800;          background: rgba(255,214,0,0.08); }
-    .sev-btn[data-sev="high"]     { color: var(--orange); border-color: #663500;          background: rgba(255,136,0,0.08); }
-    .sev-btn[data-sev="critical"] { color: var(--red);    border-color: #660011;          background: rgba(255,34,68,0.08); }
-
-    /* ── Live feed ────────────────────────────────────────────────────── */
-    #feed-header {
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 14px 8px;
-      border-bottom: 1px solid var(--border);
-    }
-    #feed-header .ph { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cyan); }
-    #feed-count { font-size: 0.62rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
-
-    #feed-list {
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    .feed-item {
-      padding: 9px 14px;
-      border-bottom: 1px solid var(--border);
-      cursor: pointer;
-      transition: background 0.12s;
-    }
-    .feed-item:hover { background: var(--bg-hover); }
-    .feed-item.expanded .fi-body { display: block; }
-
-    .fi-top {
-      display: flex;
-      align-items: flex-start;
-      gap: 6px;
-    }
-
-    .sev-badge {
-      font-size: 0.55rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 1px 5px;
-      border-radius: 3px;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-    .sev-badge.info     { background: rgba(0,212,255,0.15); color: var(--cyan);   border: 1px solid var(--cyan-dim); }
-    .sev-badge.low      { background: rgba(0,255,136,0.12); color: var(--green);  border: 1px solid var(--green-dim); }
-    .sev-badge.medium   { background: rgba(255,214,0,0.12); color: var(--yellow); border: 1px solid #665800; }
-    .sev-badge.high     { background: rgba(255,136,0,0.12); color: var(--orange); border: 1px solid #663500; }
-    .sev-badge.critical { background: rgba(255,34,68,0.15); color: var(--red);    border: 1px solid #660011; animation: blink 1.2s infinite; }
-
-    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
-
-    .fi-content { flex: 1; min-width: 0; }
-    .fi-title { font-size: 0.73rem; font-weight: 600; color: var(--text-prim); line-height: 1.35; margin-bottom: 2px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .fi-meta  { display: flex; gap: 6px; font-size: 0.62rem; color: var(--text-dim); flex-wrap: wrap; }
-    .fi-source { color: var(--cyan-dim); }
-    .fi-cat    { text-transform: uppercase; letter-spacing: 0.04em; }
-
-    .fi-body {
-      display: none;
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid var(--border);
-      font-size: 0.7rem;
-      color: var(--text-sec);
-      line-height: 1.55;
-    }
-    .fi-body a { color: var(--cyan); text-decoration: none; }
-    .fi-body a:hover { text-decoration: underline; }
-    .fi-tags { margin-top: 5px; display: flex; gap: 4px; flex-wrap: wrap; }
-    .fi-tag  { font-size: 0.6rem; padding: 1px 5px; border-radius: 3px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim); }
-
-    /* ── Footer ───────────────────────────────────────────────────────── */
-    #footer {
-      grid-area: footer;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      padding: 0 20px;
-      background: var(--bg-panel);
-      border-top: 1px solid var(--border);
-      font-size: 0.67rem;
-      color: var(--text-dim);
-      font-variant-numeric: tabular-nums;
-    }
-    .footer-stat { display: flex; align-items: center; gap: 6px; }
-    .footer-label { text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.6rem; }
-    .footer-value { color: var(--text-sec); font-weight: 600; }
-    #sweep-progress {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-    .spinner {
-      display: none;
-      width: 10px; height: 10px;
-      border: 1.5px solid var(--border-glow);
-      border-top-color: var(--cyan);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner.active { display: block; }
-
-    /* ── Empty state ──────────────────────────────────────────────────── */
-    .empty-state {
-      padding: 20px 14px;
-      font-size: 0.7rem;
-      color: var(--text-dim);
-      text-align: center;
-      font-style: italic;
-    }
-
-    /* ── Alerts panel ─────────────────────────────────────────────────── */
-    #alerts-panel {
-      flex-shrink: 0;
-      border-top: 1px solid var(--border);
-    }
-    #alerts-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 14px 6px;
-      border-bottom: 1px solid var(--border);
-    }
-    #alerts-header .ph { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--red); }
-    #alert-count { font-size: 0.62rem; color: var(--text-dim); }
+    .right-section-title.alerts { color: var(--red); }
+    .right-section-title.feed   { color: var(--cyan); }
+    .right-section-title.summary{ color: var(--purple); }
+    .right-section-count { font-size: 0.6rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
     #alerts-list {
-      max-height: 240px;
       overflow-y: auto;
+      flex: 1;
     }
 
+    /* ── Alert items ───────────────────────────────────────────────────── */
     .alert-item {
-      padding: 7px 14px;
+      padding: 6px 12px;
       border-bottom: 1px solid var(--border);
-      font-size: 0.68rem;
+      font-size: 0.67rem;
       cursor: pointer;
       transition: background 0.12s;
+      border-left: 3px solid transparent;
     }
     .alert-item:hover { background: var(--bg-hover); }
+    .alert-item.flash    { border-left-color: var(--red); }
+    .alert-item.priority { border-left-color: var(--orange); }
+    .alert-item.routine  { border-left-color: var(--blue); }
 
-    .alert-item.flash    { border-left: 3px solid var(--red); }
-    .alert-item.priority { border-left: 3px solid var(--orange); }
-    .alert-item.routine  { border-left: 3px solid #4488ff; }
+    @keyframes flash-glow {
+      0%,100% { background: rgba(255,0,0,0.04); }
+      50%      { background: rgba(255,0,0,0.16); }
+    }
+    .alert-item.flash { animation: flash-glow 1.5s ease-in-out 4; }
 
     .alert-top {
       display: flex;
@@ -431,9 +548,8 @@ export function getDashboardHTML(): string {
       gap: 6px;
       margin-bottom: 2px;
     }
-
     .tier-badge {
-      font-size: 0.55rem;
+      font-size: 0.53rem;
       font-weight: 700;
       letter-spacing: 0.07em;
       text-transform: uppercase;
@@ -441,229 +557,722 @@ export function getDashboardHTML(): string {
       border-radius: 3px;
       flex-shrink: 0;
     }
-    .tier-badge.flash    { background: rgba(255,34,68,0.2);  color: var(--red);    border: 1px solid var(--red); }
-    .tier-badge.priority { background: rgba(255,136,0,0.2);  color: var(--orange); border: 1px solid var(--orange); }
-    .tier-badge.routine  { background: rgba(68,136,255,0.15);color: #4488ff;       border: 1px solid #224488; }
+    .tier-badge.flash    { background: rgba(255,0,0,0.18);    color: var(--red);    border: 1px solid var(--red-dim); }
+    .tier-badge.priority { background: rgba(255,136,0,0.18);  color: var(--orange); border: 1px solid var(--orange-dim); }
+    .tier-badge.routine  { background: rgba(68,136,255,0.15); color: var(--blue);   border: 1px solid #224488; }
 
-    .alert-title  { font-size: 0.7rem; color: var(--text-prim); font-weight: 600;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
-    .alert-reason { font-size: 0.62rem; color: var(--text-sec); margin-top: 1px; }
-    .alert-time   { font-size: 0.6rem; color: var(--text-dim); }
+    .alert-title  { font-size: 0.68rem; color: var(--text-prim); font-weight: 600;
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .alert-reason { font-size: 0.61rem; color: var(--text-sec); }
+    .alert-time   { font-size: 0.58rem; color: var(--text-dim); }
 
-    @keyframes flash-pulse {
-      0%,100% { background: rgba(255,34,68,0.05); }
-      50%      { background: rgba(255,34,68,0.18); }
+    /* ── Feed section ──────────────────────────────────────────────────── */
+    #feed-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
-    .alert-item.flash { animation: flash-pulse 1.5s ease-in-out 3; }
 
-    /* ── Footer alert stat ─────────────────────────────────────────────── */
-    #ft-alerts { }
+    #feed-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* ── Feed items ────────────────────────────────────────────────────── */
+    .feed-item {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.12s;
+      border-left: 3px solid transparent;
+    }
+    .feed-item:hover { background: var(--bg-hover); }
+    .feed-item.new-item { animation: slide-in 0.3s ease; }
+    .feed-item.expanded .fi-body { display: block; }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateX(12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .fi-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .sev-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .sev-dot.info     { background: var(--sev-info);     box-shadow: 0 0 4px var(--sev-info); }
+    .sev-dot.low      { background: var(--sev-low);      box-shadow: 0 0 4px var(--sev-low); }
+    .sev-dot.medium   { background: var(--sev-medium);   box-shadow: 0 0 4px var(--sev-medium); }
+    .sev-dot.high     { background: var(--sev-high);     box-shadow: 0 0 4px var(--sev-high); }
+    .sev-dot.critical { background: var(--sev-critical); box-shadow: 0 0 6px var(--sev-critical); animation: pulse-dot 1.2s infinite; }
+
+    .fi-content { flex: 1; min-width: 0; }
+    .fi-title {
+      font-size: 0.71rem;
+      font-weight: 600;
+      color: var(--text-prim);
+      line-height: 1.35;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .fi-meta {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      flex-wrap: wrap;
+    }
+    .fi-source { color: var(--cyan-dim); font-weight: 600; }
+    .fi-cat-badge {
+      font-size: 0.56rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    .fi-time { color: var(--text-dim); }
+
+    .fi-body {
+      display: none;
+      margin-top: 7px;
+      padding-top: 7px;
+      border-top: 1px solid var(--border);
+      font-size: 0.68rem;
+      color: var(--text-sec);
+      line-height: 1.55;
+    }
+    .fi-body a { color: var(--cyan); text-decoration: none; }
+    .fi-body a:hover { text-decoration: underline; }
+    .fi-location {
+      font-size: 0.63rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+    .fi-tags { margin-top: 5px; display: flex; gap: 4px; flex-wrap: wrap; }
+    .fi-tag  { font-size: 0.58rem; padding: 1px 5px; border-radius: 3px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim); }
+
+    /* ── AI Summary section ────────────────────────────────────────────── */
+    #summary-section {
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      max-height: 160px;
+      display: flex;
+      flex-direction: column;
+      transition: max-height 0.25s ease;
+    }
+    #summary-section.collapsed { max-height: 32px; }
+    #summary-body {
+      overflow-y: auto;
+      flex: 1;
+      padding: 8px 12px 10px;
+      font-size: 0.68rem;
+      color: var(--text-sec);
+      line-height: 1.6;
+    }
+    #summary-section.collapsed #summary-body { display: none; }
+
+    /* ── Footer ────────────────────────────────────────────────────────── */
+    #footer {
+      grid-area: footer;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 0 16px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      font-size: 0.64rem;
+      color: var(--text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ft-stat {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 12px;
+      border-right: 1px solid var(--border);
+      height: 100%;
+    }
+    .ft-stat:first-child { padding-left: 0; }
+    .ft-label { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.58rem; color: var(--text-dim); }
+    .ft-value { color: var(--text-sec); font-weight: 600; }
+    .ft-value.cyan   { color: var(--cyan); }
+    .ft-value.orange { color: var(--orange); }
+    .ft-value.red    { color: var(--red); }
+
+    .ft-alerts-detail {
+      display: flex;
+      gap: 6px;
+    }
+    .ft-alert-chip {
+      font-size: 0.58rem;
+      padding: 0 5px;
+      border-radius: 3px;
+      font-weight: 700;
+    }
+    .ft-alert-chip.flash    { color: var(--red);    background: rgba(255,0,0,0.12); }
+    .ft-alert-chip.priority { color: var(--orange); background: rgba(255,136,0,0.12); }
+    .ft-alert-chip.routine  { color: var(--blue);   background: rgba(68,136,255,0.10); }
+
+    #ft-status-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      padding-left: 12px;
+    }
+
+    /* ── Empty state ───────────────────────────────────────────────────── */
+    .empty-state {
+      padding: 16px 12px;
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      text-align: center;
+      font-style: italic;
+    }
+
+    /* ── Glassmorphism panels ──────────────────────────────────────────── */
+    .glass {
+      background: rgba(17,17,39,0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    /* ── Leaflet dark theme overrides ──────────────────────────────────── */
+    .leaflet-container {
+      background: #080818 !important;
+    }
+    .leaflet-popup-content-wrapper {
+      background: rgba(10,10,30,0.97) !important;
+      border: 1px solid var(--border-glow) !important;
+      border-radius: 8px !important;
+      color: var(--text-prim) !important;
+      box-shadow: 0 0 20px rgba(0,100,200,0.2) !important;
+    }
+    .leaflet-popup-tip { background: rgba(10,10,30,0.97) !important; }
+    .leaflet-popup-close-button { color: var(--text-dim) !important; }
+    .leaflet-control-zoom a {
+      background: var(--bg-panel) !important;
+      color: var(--text-sec) !important;
+      border-color: var(--border) !important;
+    }
+    .leaflet-control-zoom a:hover { background: var(--bg-hover) !important; color: var(--cyan) !important; }
+
+    /* ── Arc animation (fake CSS arcs) ────────────────────────────────── */
+    @keyframes arc-pulse {
+      0%,100% { opacity: 0.3; }
+      50%      { opacity: 0.9; }
+    }
   </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- ── Header ─────────────────────────────────────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!--  HEADER                                                           -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
   <header id="header">
     <div class="logo">WorldView<span>News</span></div>
-    <div class="status-pill">
+    <div class="hdr-sep"></div>
+
+    <!-- SSE connection -->
+    <div class="hdr-pill" id="conn-pill">
       <div class="dot" id="conn-dot"></div>
       <span id="conn-label">Connecting…</span>
     </div>
-    <div class="status-pill">
-      <div class="dot online"></div>
-      <span id="hdr-sources">0 Sources</span>
+
+    <!-- Item count -->
+    <div class="hdr-pill">
+      <span class="label">Items</span>
+      <span class="value cyan" id="hdr-items">0</span>
     </div>
-    <div class="header-divider"></div>
-    <div class="status-pill">
-      <span id="hdr-items">0 Items</span>
+
+    <!-- Alert count -->
+    <div class="hdr-pill">
+      <span class="label">Alerts</span>
+      <span class="value orange" id="hdr-alerts">0</span>
     </div>
-    <div class="status-pill">
-      <span>Last sweep: <strong id="hdr-sweep">—</strong></span>
+
+    <!-- Sources -->
+    <div class="hdr-pill">
+      <span class="label">Sources</span>
+      <span class="value" id="hdr-sources">0</span>
     </div>
+
+    <div class="hdr-spacer"></div>
+
+    <!-- Last sweep -->
+    <div class="hdr-pill">
+      <span class="label">Last Sweep</span>
+      <span class="value" id="hdr-sweep">—</span>
+    </div>
+
+    <!-- Sweep spinner -->
+    <div class="spinner" id="hdr-spinner"></div>
+    <span id="hdr-sweep-status" style="font-size:0.64rem;color:var(--text-dim)">Idle</span>
   </header>
 
-  <!-- ── Left Sidebar ───────────────────────────────────────────────── -->
-  <aside id="left-sidebar">
-    <div id="sources-list">
-      <div class="panel-header">Data Sources</div>
-      <div id="sources-inner"><div class="empty-state">Loading…</div></div>
-    </div>
-    <div id="filters">
-      <div class="panel-header" style="margin-top:1px">Category Filter</div>
-      <div class="filter-grid" id="cat-filters">
-        <button class="filter-btn active" data-cat="all">All</button>
-        <button class="filter-btn" data-cat="conflict">Conflict</button>
-        <button class="filter-btn" data-cat="aviation">Aviation</button>
-        <button class="filter-btn" data-cat="maritime">Maritime</button>
-        <button class="filter-btn" data-cat="environment">Environ.</button>
-        <button class="filter-btn" data-cat="economic">Economic</button>
-        <button class="filter-btn" data-cat="market">Market</button>
-        <button class="filter-btn" data-cat="space">Space</button>
-        <button class="filter-btn" data-cat="news">News</button>
-        <button class="filter-btn" data-cat="weather">Weather</button>
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!--  LEFT PANEL — Intelligence Control                                -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <aside id="left-panel">
+
+    <!-- Source Status -->
+    <div class="panel-section" id="sec-sources">
+      <div class="panel-section-header" onclick="toggleSection('sec-sources')">
+        <span class="panel-section-title">Data Sources</span>
+        <span class="panel-chevron">▾</span>
+      </div>
+      <div class="panel-section-body" id="sec-sources-body">
+        <div id="sources-inner"><div class="empty-state">Loading…</div></div>
       </div>
     </div>
-    <div id="sev-filters">
-      <div class="panel-header">Severity Filter</div>
-      <div class="sev-grid" id="sev-filter-grid">
-        <button class="sev-btn active" data-sev="info">Info</button>
-        <button class="sev-btn active" data-sev="low">Low</button>
-        <button class="sev-btn active" data-sev="medium">Medium</button>
-        <button class="sev-btn active" data-sev="high">High</button>
-        <button class="sev-btn active" data-sev="critical">Critical</button>
+
+    <!-- Category Filters -->
+    <div class="panel-section" id="sec-cats">
+      <div class="panel-section-header" onclick="toggleSection('sec-cats')">
+        <span class="panel-section-title">Category Filter</span>
+        <span class="panel-chevron">▾</span>
+      </div>
+      <div class="panel-section-body" id="sec-cats-body">
+        <div class="filter-grid" id="cat-filters">
+          <button class="filter-btn active" data-cat="all">All</button>
+          <button class="filter-btn" data-cat="conflict">Conflict</button>
+          <button class="filter-btn" data-cat="aviation">Aviation</button>
+          <button class="filter-btn" data-cat="maritime">Maritime</button>
+          <button class="filter-btn" data-cat="environment">Environ.</button>
+          <button class="filter-btn" data-cat="economic">Economic</button>
+          <button class="filter-btn" data-cat="market">Market</button>
+          <button class="filter-btn" data-cat="space">Space</button>
+          <button class="filter-btn" data-cat="news">News</button>
+          <button class="filter-btn" data-cat="weather">Weather</button>
+        </div>
       </div>
     </div>
+
+    <!-- Severity Filters -->
+    <div class="panel-section" id="sec-sev">
+      <div class="panel-section-header" onclick="toggleSection('sec-sev')">
+        <span class="panel-section-title">Severity Filter</span>
+        <span class="panel-chevron">▾</span>
+      </div>
+      <div class="panel-section-body" id="sec-sev-body">
+        <div class="filter-grid" id="sev-filter-grid">
+          <button class="sev-btn active" data-sev="info">Info</button>
+          <button class="sev-btn active" data-sev="low">Low</button>
+          <button class="sev-btn active" data-sev="medium">Medium</button>
+          <button class="sev-btn active" data-sev="high">High</button>
+          <button class="sev-btn active" data-sev="critical">Critical</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sweep Control -->
+    <div class="panel-section" id="sec-sweep">
+      <div class="panel-section-header" onclick="toggleSection('sec-sweep')">
+        <span class="panel-section-title purple">Sweep Control</span>
+        <span class="panel-chevron">▾</span>
+      </div>
+      <div class="panel-section-body" id="sec-sweep-body">
+        <div class="sweep-body">
+          <div class="sweep-info-row">
+            <span class="key">Last Sweep</span>
+            <span class="val" id="sweep-last">—</span>
+          </div>
+          <div class="sweep-info-row">
+            <span class="key">Status</span>
+            <span class="val" id="sweep-status">Idle</span>
+          </div>
+          <div class="sweep-info-row">
+            <span class="key">Total Sweeps</span>
+            <span class="val" id="sweep-count">0</span>
+          </div>
+          <div class="sweep-info-row">
+            <span class="key">Uptime</span>
+            <span class="val" id="sweep-uptime">—</span>
+          </div>
+          <button class="btn-trigger" id="btn-sweep-now" onclick="triggerSweep()">
+            <span>&#9654;</span> Trigger Sweep
+          </button>
+        </div>
+      </div>
+    </div>
+
   </aside>
 
-  <!-- ── Globe ──────────────────────────────────────────────────────── -->
-  <main id="globe-container">
-    <div id="globe-el"></div>
-    <div class="globe-overlay">Drag to rotate · Scroll to zoom</div>
-    <div id="tooltip">
-      <div class="tt-title" id="tt-title"></div>
-      <div class="tt-meta" id="tt-meta"></div>
-      <div class="tt-desc" id="tt-desc"></div>
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!--  CENTER — Map / Globe                                             -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <main id="center">
+
+    <!-- Tab bar -->
+    <div id="map-tabs">
+      <div class="map-tab active" id="tab-globe" onclick="switchMap('globe')">&#127760; 3D Globe</div>
+      <div class="map-tab" id="tab-map" onclick="switchMap('map')">&#128507; 2D Map</div>
     </div>
+
+    <!-- Globe -->
+    <div id="globe-wrap">
+      <div id="globe-el"></div>
+      <div id="map-hint">Drag to rotate · Scroll to zoom</div>
+    </div>
+
+    <!-- Leaflet 2D map -->
+    <div id="map-wrap">
+      <div id="leaflet-map"></div>
+    </div>
+
+    <!-- Floating stats overlay -->
+    <div id="map-stats">
+      <div class="map-stat">
+        <span>Points</span>
+        <span class="ms-val cyan" id="ms-points">0</span>
+      </div>
+      <div class="map-stat">
+        <span>Sources</span>
+        <span class="ms-val" id="ms-sources">0</span>
+      </div>
+      <div class="map-stat">
+        <div class="dot" id="ms-conn-dot"></div>
+        <span id="ms-conn-label">Connecting</span>
+      </div>
+    </div>
+
   </main>
 
-  <!-- ── Right Sidebar ──────────────────────────────────────────────── -->
-  <aside id="right-sidebar">
-    <div id="alerts-panel">
-      <div id="alerts-header">
-        <span class="ph">Alerts</span>
-        <span id="alert-count">0 alerts</span>
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!--  RIGHT PANEL — Intelligence Feed                                  -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <aside id="right-panel">
+
+    <!-- Alerts -->
+    <div id="alerts-section">
+      <div class="right-section-header">
+        <span class="right-section-title alerts">&#9888; Alerts</span>
+        <span class="right-section-count" id="alert-count">0</span>
       </div>
       <div id="alerts-list">
         <div class="empty-state">No alerts yet.</div>
       </div>
     </div>
-    <div id="feed-header">
-      <span class="ph">Live Intelligence Feed</span>
-      <span id="feed-count">0 items</span>
+
+    <!-- Live Feed -->
+    <div id="feed-section">
+      <div class="right-section-header">
+        <span class="right-section-title feed">Live Intelligence Feed</span>
+        <span class="right-section-count" id="feed-count">0 items</span>
+      </div>
+      <div id="feed-list">
+        <div class="empty-state">Waiting for first sweep…</div>
+      </div>
     </div>
-    <div id="feed-list">
-      <div class="empty-state">Waiting for first sweep…</div>
+
+    <!-- AI Summary -->
+    <div id="summary-section">
+      <div class="right-section-header" style="cursor:pointer" onclick="toggleSummary()">
+        <span class="right-section-title summary">&#129302; AI Summary</span>
+        <span class="panel-chevron" id="summary-chevron">▾</span>
+      </div>
+      <div id="summary-body">
+        <div class="empty-state">No summary yet — LLM analysis required.</div>
+      </div>
     </div>
+
   </aside>
 
-  <!-- ── Footer ─────────────────────────────────────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!--  FOOTER — Stats Bar                                               -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
   <footer id="footer">
-    <div class="footer-stat">
-      <span class="footer-label">Sweeps</span>
-      <span class="footer-value" id="ft-sweeps">0</span>
+    <div class="ft-stat">
+      <span class="ft-label">Items</span>
+      <span class="ft-value cyan" id="ft-items">0</span>
     </div>
-    <div class="footer-stat">
-      <span class="footer-label">Items</span>
-      <span class="footer-value" id="ft-items">0</span>
+    <div class="ft-stat">
+      <span class="ft-label">Sources</span>
+      <span class="ft-value" id="ft-sources">0 / 0</span>
     </div>
-    <div class="footer-stat">
-      <span class="footer-label">Sources</span>
-      <span class="footer-value" id="ft-sources">0 / 0</span>
+    <div class="ft-stat">
+      <span class="ft-label">Alerts</span>
+      <div class="ft-alerts-detail">
+        <span class="ft-alert-chip flash"  id="ft-flash">F:0</span>
+        <span class="ft-alert-chip priority" id="ft-priority">P:0</span>
+        <span class="ft-alert-chip routine"  id="ft-routine">R:0</span>
+      </div>
     </div>
-    <div class="footer-stat">
-      <span class="footer-label">SSE Clients</span>
-      <span class="footer-value" id="ft-clients">—</span>
+    <div class="ft-stat">
+      <span class="ft-label">Last Sweep</span>
+      <span class="ft-value" id="ft-sweep">—</span>
     </div>
-    <div class="footer-stat">
-      <span class="footer-label">Alerts</span>
-      <span class="footer-value" id="ft-alerts">0</span>
+    <div class="ft-stat">
+      <span class="ft-label">Sweeps</span>
+      <span class="ft-value" id="ft-sweeps">0</span>
     </div>
-    <div id="sweep-progress">
+    <div class="ft-stat">
+      <span class="ft-label">SSE</span>
+      <span class="ft-value" id="ft-clients">—</span>
+    </div>
+    <div id="ft-status-area">
       <span id="ft-status">Initialising…</span>
-      <div class="spinner" id="spinner"></div>
+      <div class="spinner" id="ft-spinner"></div>
     </div>
   </footer>
 
 </div>
 
-<!-- ── Application Script ────────────────────────────────────────────── -->
+<!-- ── Tooltip (shared for globe and map) ─────────────────────────────── -->
+<div id="tooltip">
+  <div class="tt-sev" id="tt-sev"></div>
+  <div class="tt-title" id="tt-title"></div>
+  <div class="tt-meta" id="tt-meta"></div>
+  <div class="tt-desc" id="tt-desc"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!--  CDN Libraries                                                        -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/globe.gl@2.32.0/dist/globe.gl.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!--  APPLICATION SCRIPT                                                   -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
 <script>
 (function () {
   'use strict';
 
-  // ── State ────────────────────────────────────────────────────────────
-  let allItems    = [];
-  let allSources  = [];
-  let allAlerts   = [];
-  let activeCategory = 'all';
-  let activeSeverities = new Set(['info','low','medium','high','critical']);
-  let globe       = null;
-  let globeReady  = false;
-  let userInteracting = false;
-  let idleTimer   = null;
+  // ═══════════════════════════════════════════════════════════════════
+  //  Constants & Config
+  // ═══════════════════════════════════════════════════════════════════
 
   const SEV_COLOR = {
-    info:     '#00d4ff',
-    low:      '#00ff88',
-    medium:   '#ffd600',
+    info:     '#00ffff',
+    low:      '#00ff00',
+    medium:   '#ffff00',
     high:     '#ff8800',
-    critical: '#ff2244',
+    critical: '#ff0000',
   };
-  const SEV_SIZE = { info: 0.35, low: 0.4, medium: 0.55, high: 0.7, critical: 0.9 };
 
-  // ── DOM refs ─────────────────────────────────────────────────────────
-  const $ = id => document.getElementById(id);
-  const connDot   = $('conn-dot');
-  const connLabel = $('conn-label');
+  const SEV_HEIGHT = { info: 0.02, low: 0.03, medium: 0.05, high: 0.07, critical: 0.10 };
+  const SEV_RADIUS = { info: 0.3,  low: 0.35, medium: 0.45, high: 0.6,  critical: 0.8  };
 
-  // ── Helpers ──────────────────────────────────────────────────────────
+  const CAT_COLOR = {
+    conflict:    '#ef4444',
+    aviation:    '#3b82f6',
+    maritime:    '#06b6d4',
+    environment: '#22c55e',
+    economic:    '#f59e0b',
+    market:      '#a855f7',
+    space:       '#6366f1',
+    news:        '#64748b',
+    weather:     '#0ea5e9',
+  };
+
+  const MAX_FEED_ITEMS   = 200;
+  const MAX_ALERT_ITEMS  = 50;
+  const MAX_MEMORY_ITEMS = 500;
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  State
+  // ═══════════════════════════════════════════════════════════════════
+
+  let allItems         = [];
+  let allSources       = [];
+  let allAlerts        = [];
+  let activeCategory   = 'all';
+  let activeSeverities = new Set(['info', 'low', 'medium', 'high', 'critical']);
+  let currentMapMode   = 'globe'; // 'globe' | 'map'
+  let summarySectionCollapsed = false;
+
+  // Globe state
+  let globe          = null;
+  let globeReady     = false;
+  let userInteracting = false;
+  let idleTimer      = null;
+
+  // Leaflet state
+  let leafletMap     = null;
+  let leafletMarkers = null; // L.LayerGroup
+  let leafletReady   = false;
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  DOM Helpers
+  // ═══════════════════════════════════════════════════════════════════
+
+  const $ = (id) => document.getElementById(id);
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Utilities
+  // ═══════════════════════════════════════════════════════════════════
+
   function timeAgo(dateStr) {
-    const d = new Date(dateStr);
+    const d    = new Date(dateStr);
     const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-    if (diff < 60)   return diff + 's ago';
-    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
-    if (diff < 86400)return Math.floor(diff/3600) + 'h ago';
-    return Math.floor(diff/86400) + 'd ago';
+    if (diff < 60)    return diff + 's ago';
+    if (diff < 3600)  return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
   }
 
-  function fmtDate(dateStr) {
+  function fmtTime(dateStr) {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    return new Date(dateStr).toLocaleTimeString('en-US', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+  }
+
+  function formatUptime(secs) {
+    if (secs < 60)   return secs + 's';
+    if (secs < 3600) return Math.floor(secs / 60) + 'm ' + (secs % 60) + 's';
+    return Math.floor(secs / 3600) + 'h ' + Math.floor((secs % 3600) / 60) + 'm';
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   function filteredItems() {
-    return allItems.filter(it =>
+    return allItems.filter((it) =>
       (activeCategory === 'all' || it.category === activeCategory) &&
       activeSeverities.has(it.severity)
     );
   }
 
-  // ── Globe setup ───────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  //  Collapsible panels (left panel sections)
+  // ═══════════════════════════════════════════════════════════════════
+
+  function toggleSection(id) {
+    const sec  = $(id);
+    const body = sec.querySelector('.panel-section-body');
+    const collapsed = sec.classList.toggle('collapsed');
+    if (!collapsed) {
+      body.style.maxHeight = body.scrollHeight + 'px';
+      // Let it be auto after transition
+      body.addEventListener('transitionend', () => {
+        if (!sec.classList.contains('collapsed')) body.style.maxHeight = '';
+      }, { once: true });
+    } else {
+      body.style.maxHeight = body.scrollHeight + 'px';
+      // Force reflow
+      body.getBoundingClientRect();
+      body.style.maxHeight = '0';
+    }
+  }
+
+  // Set initial max-height for all open sections
+  function initSectionHeights() {
+    document.querySelectorAll('.panel-section:not(.collapsed) .panel-section-body').forEach((body) => {
+      body.style.maxHeight = '';
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  AI Summary toggle
+  // ═══════════════════════════════════════════════════════════════════
+
+  function toggleSummary() {
+    summarySectionCollapsed = !summarySectionCollapsed;
+    $('summary-section').classList.toggle('collapsed', summarySectionCollapsed);
+    $('summary-chevron').style.transform = summarySectionCollapsed ? 'rotate(-90deg)' : '';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Map mode switching
+  // ═══════════════════════════════════════════════════════════════════
+
+  function switchMap(mode) {
+    currentMapMode = mode;
+
+    if (mode === 'globe') {
+      $('globe-wrap').style.display = 'block';
+      $('map-wrap').style.display   = 'none';
+      $('map-hint').textContent     = 'Drag to rotate \u00b7 Scroll to zoom';
+      $('tab-globe').classList.add('active');
+      $('tab-map').classList.remove('active');
+    } else {
+      $('globe-wrap').style.display = 'none';
+      $('map-wrap').style.display   = 'block';
+      $('map-hint').textContent     = 'Click markers for details';
+      $('tab-globe').classList.remove('active');
+      $('tab-map').classList.add('active');
+
+      // Initialise Leaflet lazily
+      if (!leafletReady) {
+        initLeaflet();
+      } else {
+        leafletMap.invalidateSize();
+        updateLeaflet();
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Globe (globe.gl)
+  // ═══════════════════════════════════════════════════════════════════
+
   function initGlobe() {
     if (typeof Globe === 'undefined') {
-      console.warn('globe.gl not loaded — retrying in 500ms');
       setTimeout(initGlobe, 500);
       return;
     }
 
     const container = $('globe-el');
-    const w = container.clientWidth;
-    const h = container.clientHeight;
 
     globe = Globe({ animateIn: true })(container);
     globe
-      .width(w)
-      .height(h)
+      .width(container.clientWidth)
+      .height(container.clientHeight)
       .backgroundColor('rgba(0,0,0,0)')
       .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
       .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-      .atmosphereColor('#1a4a8a')
-      .atmosphereAltitude(0.15)
+      .atmosphereColor('#1a3a7a')
+      .atmosphereAltitude(0.18)
       .pointsData([])
       .pointLat('lat')
       .pointLng('lng')
       .pointColor('color')
       .pointRadius('radius')
-      .pointAltitude(0.01)
-      .pointResolution(6)
-      .onPointHover(handlePointHover)
-      .pointLabel(() => '');
+      .pointAltitude('altitude')
+      .pointResolution(8)
+      .onPointHover(handleGlobeHover)
+      .pointLabel(() => '')
+      // Arcs for correlations
+      .arcsData([])
+      .arcStartLat('startLat')
+      .arcStartLng('startLng')
+      .arcEndLat('endLat')
+      .arcEndLng('endLng')
+      .arcColor('color')
+      .arcAltitude(0.25)
+      .arcStroke(0.5)
+      .arcDashLength(0.4)
+      .arcDashGap(0.15)
+      .arcDashAnimateTime(2000);
 
-    // Auto-rotate when user is not interacting
-    globe.controls().autoRotate = true;
-    globe.controls().autoRotateSpeed = 0.4;
-    globe.controls().enableDamping = true;
+    // Auto-rotate
+    globe.controls().autoRotate      = true;
+    globe.controls().autoRotateSpeed = 0.35;
+    globe.controls().enableDamping   = true;
+    globe.controls().dampingFactor   = 0.08;
 
     globe.controls().addEventListener('start', () => {
       userInteracting = true;
@@ -675,11 +1284,13 @@ export function getDashboardHTML(): string {
       idleTimer = setTimeout(() => {
         globe.controls().autoRotate = true;
         userInteracting = false;
-      }, 4000);
+      }, 5000);
     });
 
     window.addEventListener('resize', () => {
-      globe.width(container.clientWidth).height(container.clientHeight);
+      if (currentMapMode === 'globe') {
+        globe.width(container.clientWidth).height(container.clientHeight);
+      }
     });
 
     globeReady = true;
@@ -688,117 +1299,269 @@ export function getDashboardHTML(): string {
 
   function updateGlobe() {
     if (!globeReady) return;
-    const items = filteredItems().filter(it => it.location);
-    const points = items.map(it => ({
-      lat:    it.location.lat,
-      lng:    it.location.lon,
-      color:  SEV_COLOR[it.severity] || '#ffffff',
-      radius: SEV_SIZE[it.severity]  || 0.4,
-      item:   it,
+
+    const geoItems = filteredItems().filter((it) => it.location);
+    const points   = geoItems.map((it) => ({
+      lat:      it.location.lat,
+      lng:      it.location.lon,
+      color:    SEV_COLOR[it.severity] || '#ffffff',
+      radius:   SEV_RADIUS[it.severity] || 0.35,
+      altitude: SEV_HEIGHT[it.severity] || 0.02,
+      item:     it,
     }));
+
     globe.pointsData(points);
+
+    // Build correlation arcs (items within same category within 2000 km)
+    const arcs = buildArcs(geoItems.slice(0, 60)); // cap for performance
+    globe.arcsData(arcs);
+
+    $('ms-points').textContent = geoItems.length;
   }
 
-  // ── Tooltip ───────────────────────────────────────────────────────────
-  const tooltip = $('tooltip');
-  document.addEventListener('mousemove', e => {
-    if (tooltip.style.display === 'block') {
-      const x = e.clientX + 14;
-      const y = e.clientY - 10;
-      tooltip.style.left = Math.min(x, window.innerWidth  - 300) + 'px';
-      tooltip.style.top  = Math.min(y, window.innerHeight - 120) + 'px';
+  function buildArcs(items) {
+    const arcs = [];
+    const catGroups = {};
+    for (const it of items) {
+      if (!catGroups[it.category]) catGroups[it.category] = [];
+      catGroups[it.category].push(it);
     }
-  });
-
-  function handlePointHover(pt) {
-    if (!pt) { tooltip.style.display = 'none'; return; }
-    const it = pt.item;
-    $('tt-title').textContent = it.title;
-    $('tt-meta').textContent  = [it.source, it.category.toUpperCase(), timeAgo(it.timestamp)].join(' · ');
-    $('tt-desc').textContent  = it.description.slice(0, 180) + (it.description.length > 180 ? '…' : '');
-    tooltip.style.display = 'block';
+    for (const cat of Object.keys(catGroups)) {
+      const group = catGroups[cat];
+      for (let i = 0; i < group.length && i < 4; i++) {
+        for (let j = i + 1; j < group.length && j < 5; j++) {
+          const a = group[i]; const b = group[j];
+          if (!a.location || !b.location) continue;
+          const dist = haversine(a.location.lat, a.location.lon, b.location.lat, b.location.lon);
+          if (dist < 3000) {
+            const col = CAT_COLOR[cat] || '#ffffff';
+            arcs.push({
+              startLat: a.location.lat, startLng: a.location.lon,
+              endLat:   b.location.lat, endLng:   b.location.lon,
+              color:    [col + '88', col + '22'],
+            });
+          }
+        }
+      }
+    }
+    return arcs;
   }
 
-  // ── Sources list ─────────────────────────────────────────────────────
-  function renderSources() {
-    const el = $('sources-inner');
-    if (!allSources.length) { el.innerHTML = '<div class="empty-state">No sources registered.</div>'; return; }
-    el.innerHTML = allSources.map(s => \`
-      <div class="source-item">
-        <div class="src-dot \${s.available ? 'ok' : 'off'}"></div>
-        <span class="source-name">\${s.name}</span>
-        <span class="source-cat">\${s.category}</span>
-      </div>
-    \`).join('');
+  function haversine(lat1, lon1, lat2, lon2) {
+    const R   = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a   = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }
 
-  // ── Alerts ────────────────────────────────────────────────────────────
-  function renderAlerts() {
-    const el = $('alerts-list');
-    $('alert-count').textContent = allAlerts.length + ' alert' + (allAlerts.length !== 1 ? 's' : '');
-    $('ft-alerts').textContent = allAlerts.length;
+  // ═══════════════════════════════════════════════════════════════════
+  //  Leaflet 2D Map
+  // ═══════════════════════════════════════════════════════════════════
 
-    if (!allAlerts.length) {
-      el.innerHTML = '<div class="empty-state">No alerts yet.</div>';
+  function initLeaflet() {
+    if (typeof L === 'undefined') {
+      setTimeout(initLeaflet, 500);
       return;
     }
 
-    el.innerHTML = allAlerts.slice(0, 50).map(alert => {
-      const tier = alert.tier.toLowerCase();
-      const change = alert.change;
-      const item = change.item;
+    leafletMap = L.map('leaflet-map', {
+      center: [20, 10],
+      zoom:   2,
+      zoomControl: true,
+      attributionControl: false,
+    });
+
+    // Dark tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd',
+      maxZoom: 18,
+    }).addTo(leafletMap);
+
+    leafletMarkers = L.layerGroup().addTo(leafletMap);
+
+    leafletReady = true;
+    updateLeaflet();
+  }
+
+  function updateLeaflet() {
+    if (!leafletReady) return;
+
+    leafletMarkers.clearLayers();
+
+    const geoItems = filteredItems().filter((it) => it.location);
+
+    for (const it of geoItems) {
+      const col = SEV_COLOR[it.severity] || '#ffffff';
+      const r   = { info: 5, low: 6, medium: 7, high: 9, critical: 11 }[it.severity] || 6;
+
+      const circle = L.circleMarker([it.location.lat, it.location.lon], {
+        radius:      r,
+        fillColor:   col,
+        color:       col,
+        weight:      1,
+        opacity:     0.9,
+        fillOpacity: 0.6,
+      });
+
+      const popupHtml = \`
+        <div style="font-family:'Inter',sans-serif;max-width:220px">
+          <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:\${col};margin-bottom:4px">\${esc(it.severity)} · \${esc(it.category)}</div>
+          <div style="font-size:0.78rem;font-weight:700;color:#e2e8f0;margin-bottom:4px;line-height:1.3">\${esc(it.title)}</div>
+          <div style="font-size:0.65rem;color:#8892a4;margin-bottom:4px">\${esc(it.source)} · \${timeAgo(it.timestamp)}</div>
+          <div style="font-size:0.67rem;color:#8892a4;line-height:1.5">\${esc(it.description.slice(0, 120))}\${it.description.length > 120 ? '…' : ''}</div>
+          \${it.url ? \`<div style="margin-top:6px"><a href="\${esc(it.url)}" target="_blank" rel="noopener" style="font-size:0.63rem;color:#00ffff;text-decoration:none">View source &#8599;</a></div>\` : ''}
+        </div>
+      \`;
+
+      circle.bindPopup(popupHtml);
+      leafletMarkers.addLayer(circle);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Globe Tooltip
+  // ═══════════════════════════════════════════════════════════════════
+
+  const tooltip = $('tooltip');
+
+  document.addEventListener('mousemove', (e) => {
+    if (tooltip.style.display === 'block') {
+      tooltip.style.left = Math.min(e.clientX + 16, window.innerWidth  - 320) + 'px';
+      tooltip.style.top  = Math.min(e.clientY - 10, window.innerHeight - 160) + 'px';
+    }
+  });
+
+  function handleGlobeHover(pt) {
+    if (!pt) { tooltip.style.display = 'none'; return; }
+    const it  = pt.item;
+    const col = SEV_COLOR[it.severity] || '#fff';
+    $('tt-sev').textContent   = it.severity.toUpperCase() + ' — ' + it.category.toUpperCase();
+    $('tt-sev').style.color   = col;
+    $('tt-title').textContent = it.title;
+    $('tt-meta').textContent  = it.source + ' · ' + timeAgo(it.timestamp) + (it.location?.name ? ' · ' + it.location.name : '');
+    $('tt-desc').textContent  = it.description.slice(0, 200) + (it.description.length > 200 ? '…' : '');
+    tooltip.style.display     = 'block';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Render: Sources
+  // ═══════════════════════════════════════════════════════════════════
+
+  function renderSources() {
+    const el = $('sources-inner');
+    if (!allSources.length) {
+      el.innerHTML = '<div class="empty-state">No sources registered.</div>';
+      return;
+    }
+    el.innerHTML = allSources.map((s) => {
+      const col = CAT_COLOR[s.category] || '#64748b';
       return \`
-        <div class="alert-item \${tier}" onclick="this.classList.toggle('expanded')">
-          <div class="alert-top">
-            <span class="tier-badge \${tier}">\${alert.tier}</span>
-            <span class="alert-title">\${item.title}</span>
-          </div>
-          <div class="alert-reason">\${change.reason}</div>
-          <div class="alert-time">\${timeAgo(alert.createdAt)} · \${item.source}</div>
+        <div class="source-item">
+          <div class="src-dot \${s.available ? 'ok' : 'off'}"></div>
+          <span class="source-name">\${esc(s.name)}</span>
+          <span class="source-cat" style="color:\${col};background:\${col}18;border:1px solid \${col}44">\${esc(s.category)}</span>
         </div>
       \`;
     }).join('');
+
+    const avail = allSources.filter((s) => s.available).length;
+    $('ft-sources').textContent = avail + ' / ' + allSources.length;
+    $('hdr-sources').textContent = avail + ' / ' + allSources.length;
+    $('ms-sources').textContent  = avail;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Render: Alerts
+  // ═══════════════════════════════════════════════════════════════════
+
+  function renderAlerts() {
+    const el = $('alerts-list');
+    const total = allAlerts.length;
+
+    $('alert-count').textContent = total + ' alert' + (total !== 1 ? 's' : '');
+    $('hdr-alerts').textContent  = total;
+
+    if (!total) {
+      el.innerHTML = '<div class="empty-state">No alerts yet.</div>';
+      updateAlertFooter();
+      return;
+    }
+
+    el.innerHTML = allAlerts.slice(0, MAX_ALERT_ITEMS).map((alert) => {
+      const tier  = alert.tier.toLowerCase();
+      const item  = alert.change.item;
+      return \`
+        <div class="alert-item \${tier}" onclick="this.classList.toggle('expanded')">
+          <div class="alert-top">
+            <span class="tier-badge \${tier}">\${esc(alert.tier)}</span>
+            <span class="alert-title">\${esc(item.title)}</span>
+          </div>
+          <div class="alert-reason">\${esc(alert.change.reason)}</div>
+          <div class="alert-time">\${timeAgo(alert.createdAt)} · \${esc(item.source)}</div>
+        </div>
+      \`;
+    }).join('');
+
+    updateAlertFooter();
+  }
+
+  function updateAlertFooter() {
+    const flash    = allAlerts.filter((a) => a.tier === 'FLASH').length;
+    const priority = allAlerts.filter((a) => a.tier === 'PRIORITY').length;
+    const routine  = allAlerts.filter((a) => a.tier === 'ROUTINE').length;
+    $('ft-flash').textContent    = 'F:' + flash;
+    $('ft-priority').textContent = 'P:' + priority;
+    $('ft-routine').textContent  = 'R:' + routine;
   }
 
   function addAlert(alert) {
-    // Prepend new alert (most recent first); deduplicate by id
-    if (allAlerts.some(a => a.id === alert.id)) return;
+    if (allAlerts.some((a) => a.id === alert.id)) return;
     allAlerts.unshift(alert);
     if (allAlerts.length > 200) allAlerts = allAlerts.slice(0, 200);
     renderAlerts();
   }
 
-  // ── Feed ──────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  //  Render: Feed
+  // ═══════════════════════════════════════════════════════════════════
+
   function renderFeed() {
-    const items = filteredItems().slice().reverse();
+    const items = filteredItems().slice().reverse(); // newest first
     const el    = $('feed-list');
-    $('feed-count').textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
+
+    $('feed-count').textContent  = items.length + ' item' + (items.length !== 1 ? 's' : '');
+    $('hdr-items').textContent   = allItems.length;
+    $('ft-items').textContent    = allItems.length;
 
     if (!items.length) {
-      el.innerHTML = '<div class="empty-state">No items matching current filters.</div>';
+      el.innerHTML = '<div class="empty-state">No items match the current filters.</div>';
       return;
     }
 
-    el.innerHTML = items.slice(0, 200).map(it => {
-      const tags = (it.tags||[]).slice(0,4).map(t => \`<span class="fi-tag">\${t}</span>\`).join('');
-      const url  = it.url ? \`<a href="\${it.url}" target="_blank" rel="noopener">View source ↗</a>\` : '';
-      const loc  = it.location ? \`<br><small>📍 \${it.location.name}\${it.location.country ? ', '+it.location.country : ''}</small>\` : '';
+    el.innerHTML = items.slice(0, MAX_FEED_ITEMS).map((it) => {
+      const catCol = CAT_COLOR[it.category] || '#64748b';
+      const tags   = (it.tags || []).slice(0, 4).map((t) => \`<span class="fi-tag">\${esc(t)}</span>\`).join('');
+      const locStr = it.location ? \`\${esc(it.location.name)}\${it.location.country ? ', ' + esc(it.location.country) : ''}\` : '';
+      const urlEl  = it.url ? \`<br><br><a href="\${esc(it.url)}" target="_blank" rel="noopener">View source &#8599;</a>\` : '';
+
       return \`
-        <div class="feed-item" onclick="this.classList.toggle('expanded')">
+        <div class="feed-item" style="border-left-color:\${catCol}40" onclick="this.classList.toggle('expanded')">
           <div class="fi-top">
-            <span class="sev-badge \${it.severity}">\${it.severity}</span>
+            <div class="sev-dot \${it.severity}"></div>
             <div class="fi-content">
-              <div class="fi-title">\${it.title}</div>
+              <div class="fi-title">\${esc(it.title)}</div>
               <div class="fi-meta">
-                <span class="fi-source">\${it.source}</span>
-                <span class="fi-cat">\${it.category}</span>
-                <span>\${timeAgo(it.timestamp)}</span>
+                <span class="fi-source">\${esc(it.source)}</span>
+                <span class="fi-cat-badge" style="color:\${catCol};background:\${catCol}18;border:1px solid \${catCol}33">\${esc(it.category)}</span>
+                <span class="fi-time">\${timeAgo(it.timestamp)}</span>
               </div>
             </div>
           </div>
           <div class="fi-body">
-            \${it.description}\${loc}
-            \${url ? '<br><br>' + url : ''}
+            \${esc(it.description)}
+            \${locStr ? \`<div class="fi-location">Location: \${locStr}</div>\` : ''}
+            \${urlEl}
             \${tags ? '<div class="fi-tags">' + tags + '</div>' : ''}
           </div>
         </div>
@@ -806,104 +1569,211 @@ export function getDashboardHTML(): string {
     }).join('');
   }
 
-  // ── Status bar ────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  //  Render: AI Summary
+  // ═══════════════════════════════════════════════════════════════════
+
+  function renderSummary(text) {
+    $('summary-body').innerHTML = \`<div style="white-space:pre-line">\${esc(text)}</div>\`;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Status update
+  // ═══════════════════════════════════════════════════════════════════
+
   function updateStatus(data) {
-    if (data.sweepCount  !== undefined) $('ft-sweeps').textContent  = data.sweepCount;
-    if (data.itemCount   !== undefined) {
-      $('ft-items').textContent   = data.itemCount;
-      $('hdr-items').textContent  = data.itemCount + ' Items';
-    }
-    if (data.sourceCount !== undefined) {
-      $('hdr-sources').textContent = data.sourceCount + ' Sources';
-    }
-    if (data.lastSweepAt !== undefined) {
-      const t = data.lastSweepAt ? fmtDate(data.lastSweepAt) : '—';
-      $('hdr-sweep').textContent = t;
+    if (data.sweepCount !== undefined) {
+      $('ft-sweeps').textContent  = data.sweepCount;
+      $('sweep-count').textContent = data.sweepCount;
     }
     if (data.uptime !== undefined) {
-      $('ft-status').textContent = 'Uptime: ' + formatUptime(data.uptime);
+      $('ft-status').textContent   = 'Uptime: ' + formatUptime(data.uptime);
+      $('sweep-uptime').textContent = formatUptime(data.uptime);
+    }
+    if (data.lastSweepAt !== undefined) {
+      const t = data.lastSweepAt ? fmtTime(data.lastSweepAt) : '—';
+      $('hdr-sweep').textContent  = t;
+      $('ft-sweep').textContent   = t;
+      $('sweep-last').textContent = t;
+    }
+    if (data.sourceCount !== undefined) {
+      // Sources info from /status; actual per-source comes from /sources
     }
   }
 
-  function formatUptime(secs) {
-    if (secs < 60)   return secs + 's';
-    if (secs < 3600) return Math.floor(secs/60) + 'm ' + (secs%60) + 's';
-    return Math.floor(secs/3600) + 'h ' + Math.floor((secs%3600)/60) + 'm';
+  // ═══════════════════════════════════════════════════════════════════
+  //  Sweep trigger
+  // ═══════════════════════════════════════════════════════════════════
+
+  async function triggerSweep() {
+    const btn = $('btn-sweep-now');
+    btn.disabled = true;
+    setSweepRunning(true);
+    try {
+      const res = await fetch('/api/v1/sweep/trigger', { method: 'POST' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const result = await res.json();
+      onSweepResult(result);
+    } catch (e) {
+      console.error('Sweep trigger failed:', e);
+    } finally {
+      btn.disabled = false;
+      setSweepRunning(false);
+    }
   }
 
-  // ── Data fetching ─────────────────────────────────────────────────────
+  // Expose globally for onclick attributes
+  window.triggerSweep    = triggerSweep;
+  window.toggleSection   = toggleSection;
+  window.toggleSummary   = toggleSummary;
+  window.switchMap       = switchMap;
+
+  function setSweepRunning(running) {
+    const status = running ? 'Sweeping…' : 'Idle';
+    $('sweep-status').textContent       = status;
+    $('hdr-sweep-status').textContent   = status;
+    $('sweep-status').style.color       = running ? 'var(--cyan)' : '';
+    $('hdr-spinner').classList.toggle('active', running);
+    $('ft-spinner').classList.toggle('active', running);
+  }
+
+  function onSweepResult(result) {
+    const existing = new Set(allItems.map((i) => i.id));
+    const newItems = (result.items || []).filter((i) => !existing.has(i.id));
+    allItems = [...allItems, ...newItems].slice(-MAX_MEMORY_ITEMS);
+
+    updateStatus({
+      lastSweepAt: result.completedAt,
+    });
+
+    renderFeed();
+    updateGlobe();
+    if (leafletReady) updateLeaflet();
+    setSweepRunning(false);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Data fetching
+  // ═══════════════════════════════════════════════════════════════════
+
   async function fetchAll() {
     try {
-      const [itemsRes, sourcesRes, statusRes, alertsRes] = await Promise.all([
+      const [itemsRes, sourcesRes, statusRes, alertsRes, summaryRes] = await Promise.allSettled([
         fetch('/api/v1/items'),
         fetch('/api/v1/sources'),
         fetch('/api/v1/status'),
         fetch('/api/v1/alerts?limit=50'),
+        fetch('/api/v1/summary/latest'),
       ]);
-      allItems   = await itemsRes.json();
-      allSources = await sourcesRes.json();
-      const status = await statusRes.json();
-      const alertsData = await alertsRes.json();
-      allAlerts  = Array.isArray(alertsData) ? alertsData : [];
 
-      updateStatus(status);
+      if (itemsRes.status === 'fulfilled' && itemsRes.value.ok) {
+        allItems = await itemsRes.value.json();
+      }
+      if (sourcesRes.status === 'fulfilled' && sourcesRes.value.ok) {
+        allSources = await sourcesRes.value.json();
+      }
+      if (statusRes.status === 'fulfilled' && statusRes.value.ok) {
+        updateStatus(await statusRes.value.json());
+      }
+      if (alertsRes.status === 'fulfilled' && alertsRes.value.ok) {
+        const raw = await alertsRes.value.json();
+        allAlerts = Array.isArray(raw) ? raw : [];
+      }
+      if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
+        const s = await summaryRes.value.json();
+        if (s && s.text) renderSummary(s.text);
+      }
+
       renderSources();
       renderFeed();
       renderAlerts();
       updateGlobe();
 
-      const avail = allSources.filter(s => s.available).length;
-      $('ft-sources').textContent = avail + ' / ' + allSources.length;
     } catch (e) {
-      console.error('fetch error', e);
+      console.error('fetchAll error', e);
     }
   }
 
-  // ── SSE ───────────────────────────────────────────────────────────────
-  let evtSource = null;
+  // Periodic light refresh (status only)
+  async function refreshStatus() {
+    try {
+      const [statusRes, alertsRes] = await Promise.allSettled([
+        fetch('/api/v1/status'),
+        fetch('/api/v1/alerts?limit=50'),
+      ]);
+      if (statusRes.status === 'fulfilled' && statusRes.value.ok) {
+        updateStatus(await statusRes.value.json());
+      }
+      if (alertsRes.status === 'fulfilled' && alertsRes.value.ok) {
+        const raw = await alertsRes.value.json();
+        if (Array.isArray(raw)) {
+          allAlerts = raw;
+          renderAlerts();
+        }
+      }
+    } catch {}
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  SSE
+  // ═══════════════════════════════════════════════════════════════════
+
+  let evtSource      = null;
   let reconnectDelay = 1000;
+
+  function setConnState(state) {
+    // state: 'connecting' | 'online' | 'offline'
+    const dot   = $('conn-dot');
+    const label = $('conn-label');
+    const msDot = $('ms-conn-dot');
+    const msLbl = $('ms-conn-label');
+
+    const map = {
+      connecting: { cls: '',       text: 'Connecting…' },
+      online:     { cls: 'online', text: 'Live' },
+      offline:    { cls: 'offline',text: 'Reconnecting…' },
+    };
+    const s = map[state] || map.connecting;
+    dot.className   = 'dot ' + s.cls;
+    label.textContent = s.text;
+    msDot.className = 'dot ' + s.cls;
+    msLbl.textContent = s.text;
+  }
 
   function connectSSE() {
     if (evtSource) { evtSource.close(); evtSource = null; }
+    setConnState('connecting');
 
     evtSource = new EventSource('/api/v1/stream');
 
     evtSource.addEventListener('open', () => {
-      connDot.className   = 'dot online';
-      connLabel.textContent = 'Live';
+      setConnState('online');
       reconnectDelay = 1000;
     });
 
-    evtSource.addEventListener('sweep', e => {
+    evtSource.addEventListener('sweep', (e) => {
       const result = JSON.parse(e.data);
-      // Merge new items (deduplicate by id)
-      const existing = new Set(allItems.map(i => i.id));
-      const newItems = result.items.filter(i => !existing.has(i.id));
-      allItems = [...allItems, ...newItems].slice(-500); // keep last 500
-
-      updateStatus({
-        sweepCount: undefined,
-        itemCount: allItems.length,
-        lastSweepAt: result.completedAt,
-      });
-      renderFeed();
-      updateGlobe();
-      $('spinner').classList.remove('active');
+      onSweepResult(result);
     });
 
-    evtSource.addEventListener('status', e => {
+    evtSource.addEventListener('status', (e) => {
       const data = JSON.parse(e.data);
       updateStatus(data);
+      if (data.sseClients !== undefined) $('ft-clients').textContent = data.sseClients;
     });
 
-    evtSource.addEventListener('alert', e => {
+    evtSource.addEventListener('alert', (e) => {
       const alert = JSON.parse(e.data);
       addAlert(alert);
     });
 
+    evtSource.addEventListener('summary', (e) => {
+      const data = JSON.parse(e.data);
+      if (data && data.text) renderSummary(data.text);
+    });
+
     evtSource.addEventListener('error', () => {
-      connDot.className    = 'dot offline';
-      connLabel.textContent = 'Reconnecting…';
+      setConnState('offline');
       evtSource.close();
       evtSource = null;
       setTimeout(connectSSE, reconnectDelay);
@@ -911,22 +1781,26 @@ export function getDashboardHTML(): string {
     });
   }
 
-  // ── Filters ───────────────────────────────────────────────────────────
-  document.querySelectorAll('.filter-btn').forEach(btn => {
+  // ═══════════════════════════════════════════════════════════════════
+  //  Filter wiring
+  // ═══════════════════════════════════════════════════════════════════
+
+  document.querySelectorAll('.filter-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       activeCategory = btn.dataset.cat;
       renderFeed();
       updateGlobe();
+      if (leafletReady) updateLeaflet();
     });
   });
 
-  document.querySelectorAll('.sev-btn').forEach(btn => {
+  document.querySelectorAll('.sev-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const sev = btn.dataset.sev;
       if (activeSeverities.has(sev)) {
-        if (activeSeverities.size > 1) { // keep at least one
+        if (activeSeverities.size > 1) {
           activeSeverities.delete(sev);
           btn.classList.remove('active');
         }
@@ -936,28 +1810,26 @@ export function getDashboardHTML(): string {
       }
       renderFeed();
       updateGlobe();
+      if (leafletReady) updateLeaflet();
     });
   });
 
-  // ── Boot ──────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  //  Boot
+  // ═══════════════════════════════════════════════════════════════════
+
   async function boot() {
+    initSectionHeights();
     initGlobe();
     await fetchAll();
     connectSSE();
 
-    // Periodic status refresh
-    setInterval(async () => {
-      try {
-        const r = await fetch('/api/v1/status');
-        const d = await r.json();
-        updateStatus(d);
-        const avail = allSources.filter(s => s.available).length;
-        $('ft-sources').textContent = avail + ' / ' + allSources.length;
-      } catch {}
-    }, 15000);
+    // Periodic refresh every 20s
+    setInterval(refreshStatus, 20000);
   }
 
   boot();
+
 })();
 </script>
 </body>
