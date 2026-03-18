@@ -1,6 +1,12 @@
 /**
  * Generic in-memory TTL cache for expensive computations.
  * Uses lazy expiration: entries are checked on get, not proactively evicted.
+ *
+ * Redis support: when REDIS_URL is set the application can use a Redis-backed
+ * cache for shared state across multiple instances.  The in-memory TTLCache
+ * below is sufficient for single-node deployments (Phase 1–6).  To add Redis
+ * support, replace the TTLCache singleton with a Redis adapter that implements
+ * the same set/get/has/delete/clear interface using the `ioredis` package.
  */
 
 interface CacheEntry<T> {

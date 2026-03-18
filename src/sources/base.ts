@@ -22,3 +22,30 @@ export function createId(source: string, uniquePart: string): string {
       .replace(/^-+|-+$/g, '');
   return `${normalise(source)}-${normalise(uniquePart)}`;
 }
+
+/**
+ * Wraps native fetch with an AbortController-based timeout.
+ * Throws a `DOMException` (AbortError) if the request exceeds `timeoutMs`.
+ *
+ * @param url       - Target URL
+ * @param options   - Standard RequestInit options (optional)
+ * @param timeoutMs - Milliseconds before the request is aborted (default: 30 000)
+ */
+export async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 30_000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timer);
+  }
+}
