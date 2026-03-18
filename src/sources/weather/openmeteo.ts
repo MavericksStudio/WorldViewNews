@@ -11,6 +11,7 @@ import type { DataSource } from '../base.js';
 import type { IntelligenceItem, SweepContext, Severity } from '../../types.js';
 import { createId } from '../base.js';
 import { registry } from '../registry.js';
+import { logger } from '../../logger.js';
 
 const BASE_URL = 'https://api.open-meteo.com/v1/forecast';
 
@@ -179,7 +180,7 @@ const source: DataSource = {
           });
 
           if (!res.ok) {
-            console.warn(`[open-meteo] ${city.name}: HTTP ${res.status}`);
+            logger.warn(`[open-meteo] ${city.name}: HTTP ${res.status}`);
             return;
           }
 
@@ -227,7 +228,7 @@ const source: DataSource = {
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.warn(`[open-meteo] ${city.name}: ${msg}`);
+          logger.warn(`[open-meteo] ${city.name}: ${msg}`);
         }
       }),
     );

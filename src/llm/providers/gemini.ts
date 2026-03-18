@@ -24,19 +24,30 @@ const geminiProvider: LLMProvider = {
     return Boolean(config.GEMINI_API_KEY);
   },
 
-  async complete(prompt: string, _options?: CompletionOptions): Promise<string> {
+  async complete(prompt: string, options?: CompletionOptions): Promise<string> {
     const apiKey = config.GEMINI_API_KEY;
     if (!apiKey) throw new Error('GEMINI_API_KEY not set');
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-    const body = {
+    const body: Record<string, unknown> = {
       contents: [
         {
           parts: [{ text: prompt }],
         },
       ],
     };
+
+    if (options?.systemPrompt) {
+      body['system_instruction'] = { parts: [{ text: options.systemPrompt }] };
+    }
+
+    if (options?.maxTokens || options?.temperature !== undefined) {
+      body['generationConfig'] = {
+        ...(options.maxTokens ? { maxOutputTokens: options.maxTokens } : {}),
+        ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
+      };
+    }
 
     const res = await fetch(url, {
       method: 'POST',

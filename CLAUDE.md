@@ -4,7 +4,7 @@
 
 **WorldViewNews** is a unified open-source intelligence (OSINT) platform that merges two prior projects:
 
-- **World Monitor** — TypeScript SPA with 435+ RSS feeds, dual interactive maps (globe + flat), and AI-powered summarisation
+- **World Monitor** — TypeScript SPA with 435+ RSS feeds, dual interactive maps (globe + flat), live news TV, live webcams, and AI-powered summarisation
 - **Crucix** — Local-first Node.js intelligence engine with 27 structured OSINT sources, sweep-based polling architecture, and delta change detection
 
 The result is a single Node.js 22+ application that continuously sweeps public intelligence sources, detects meaningful changes, and surfaces alerts through an inline HTML dashboard, configurable notification bots, and optional LLM analysis.
@@ -18,7 +18,8 @@ The result is a single Node.js 22+ application that continuously sweeps public i
 | HTTP server | Express 4 |
 | Validation | Zod |
 | Visualization | globe.gl (3-D globe), Leaflet (flat map) |
-| Storage | JSON flat files (Phase 1), Redis optional |
+| Live Media | YouTube IFrame embeds (18 news channels, 22 webcam feeds) |
+| Storage | JSON flat files, Redis optional |
 | Testing | Node.js built-in test runner (`node --test`) |
 | Dev tooling | tsx (no-compile dev server) |
 
@@ -42,64 +43,79 @@ npm start
 
 # Run tests
 npm test
+
+# Docker
+docker compose up --build
+docker compose --profile with-llm up    # with Ollama
+docker compose --profile with-redis up  # with Redis
 ```
 
 ## Architecture Notes
 
 ### Sweep-Based Loop
 The core engine runs a configurable sweep loop (default 15 min, `SWEEP_INTERVAL_MS`). Each sweep:
-1. Fans out to all registered sources concurrently
+1. Fans out to all registered sources concurrently via `Promise.allSettled()`
 2. Collects `IntelligenceItem[]` results
 3. Runs delta detection against the previous sweep snapshot
-4. Emits `DeltaChange` events for significant changes
-5. Triggers alert delivery to configured channels
+4. Classifies changes into alert tiers (FLASH / PRIORITY / ROUTINE)
+5. Delivers alerts to configured channels (SSE, Telegram, Discord)
 
 ### Source Abstraction Interface
-Every data source implements `ISource`:
+Every data source implements `DataSource`:
 ```typescript
-interface ISource {
+interface DataSource {
   readonly id: string;
+  readonly name: string;
   readonly category: SourceCategory;
+  readonly requiresKey: boolean;
+  isAvailable(): boolean;
   fetch(ctx: SweepContext): Promise<IntelligenceItem[]>;
 }
 ```
-Sources are registered in `src/sources/index.ts` and dynamically discovered.
+Sources self-register via `registry.register(source)` in `src/sources/registry.ts`.
 
-### Inline HTML Dashboard (Phase 1)
-Rather than a separate SPA, Phase 1 serves a single self-contained HTML page at `GET /` that:
-- Renders a live-updating feed via SSE (`GET /events`)
-- Embeds a globe.gl 3-D globe and Leaflet flat map
-- Requires no build step for the frontend
+### Inline HTML Dashboard
+Serves a single self-contained HTML page at `GET /` with four center views:
+- **3D Globe** (globe.gl) — severity-colored intelligence points
+- **2D Map** (Leaflet) — flat map with clustered markers
+- **Live News** — 18 YouTube live news channels (Bloomberg, CNN, BBC, etc.)
+- **Live Webcams** — 22 city webcam feeds across 5 regions (Middle East, Europe, Americas, Asia, Space)
+
+SSE-driven real-time updates via `GET /api/v1/stream`.
 
 ### JSON Storage
 `DATA_DIR` (default `./data/`) holds:
-- `sweeps/YYYY-MM-DD/sweep-{id}.json` — raw sweep snapshots
-- `alerts/alerts.jsonl` — append-only alert log
+- `archives/YYYY-MM-DD.json` — daily sweep result archives
 
 ### Config-Gated Features
 Features are enabled only when the relevant env var is present:
 - **Telegram alerts** — requires `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`
 - **Discord alerts** — requires `DISCORD_WEBHOOK_URL` or `DISCORD_BOT_TOKEN`
-- **LLM analysis** — requires at least one LLM key (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
-- **Redis pub/sub** — requires `REDIS_URL`
+- **LLM analysis** — requires at least one LLM key (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.) or `OLLAMA_ENABLED=true`
+- **Redis cache** — requires `REDIS_URL`
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/index.ts` | Application entry point — starts sweep engine + Express server |
+| `src/index.ts` | Entry point — starts sweep engine + Express server |
 | `src/types.ts` | Core domain types (`IntelligenceItem`, `SweepResult`, `Alert`, etc.) |
 | `src/config.ts` | Zod-validated config singleton loaded from `process.env` |
 | `src/logger.ts` | Structured JSON logger (writes to stderr, respects `LOG_LEVEL`) |
-| `src/engine/sweeper.ts` | Sweep orchestrator — fan-out, collect, persist |
-| `src/engine/delta.ts` | Delta change detection logic |
-| `src/sources/index.ts` | Source registry |
-| `src/sources/*.ts` | Individual OSINT source adapters |
-| `src/server/index.ts` | Express app factory |
-| `src/server/dashboard.ts` | Inline HTML dashboard template |
-| `src/alerts/index.ts` | Alert dispatcher — routes to enabled channels |
-| `src/alerts/telegram.ts` | Telegram delivery adapter |
-| `src/alerts/discord.ts` | Discord delivery adapter |
+| `src/engine/sweep.ts` | Sweep orchestrator — fan-out, collect, persist |
+| `src/engine/delta.ts` | Delta change detection + severity scoring |
+| `src/engine/alerts.ts` | Alert manager — rate limiting, cooldowns, tiers |
+| `src/sources/registry.ts` | Source registry (auto-discovery) |
+| `src/sources/**/*.ts` | Individual OSINT source adapters (15 sources) |
+| `src/server/http.ts` | Express app factory |
+| `src/server/dashboard.ts` | Inline HTML dashboard (globe, map, live news, webcams) |
+| `src/server/sse.ts` | SSE connection manager |
+| `src/server/api.ts` | REST API routes (`/api/v1/*`) |
+| `src/bots/telegram.ts` | Telegram 2-way bot (long-polling) |
+| `src/bots/discord.ts` | Discord webhook delivery |
+| `src/llm/registry.ts` | LLM provider chain with fallback |
+| `src/llm/providers/*.ts` | 7 LLM providers (Ollama, Anthropic, OpenAI, Gemini, etc.) |
+| `src/analysis/*.ts` | Correlation, CII scoring, trade ideas |
 
 ## Environment Variables
 

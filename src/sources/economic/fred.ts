@@ -10,6 +10,7 @@ import type { IntelligenceItem, SweepContext, Severity } from '../../types.js';
 import { createId } from '../base.js';
 import { registry } from '../registry.js';
 import { config } from '../../config.js';
+import { logger } from '../../logger.js';
 
 const BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
 
@@ -124,7 +125,7 @@ const source: DataSource = {
           });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.warn(`[fred] ${series.id}: ${msg}`);
+          logger.warn(`[fred] ${series.id}: ${msg}`);
         }
       }),
     );

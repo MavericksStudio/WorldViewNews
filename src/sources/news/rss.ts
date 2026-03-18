@@ -10,6 +10,7 @@ import { createId } from '../base.js';
 import { registry } from '../registry.js';
 import { feeds } from '../../geo/feeds.js';
 import { geoTag } from '../../geo/locations.js';
+import { logger } from '../../logger.js';
 
 const MAX_ITEMS_PER_FEED = 10;
 const MAX_TOTAL_ITEMS = 100;
@@ -121,7 +122,7 @@ const source: DataSource = {
           });
 
           if (!res.ok) {
-            console.warn(`[rss] ${feed.name}: HTTP ${res.status}`);
+            logger.warn(`[rss] ${feed.name}: HTTP ${res.status}`);
             return;
           }
 
@@ -148,7 +149,7 @@ const source: DataSource = {
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.warn(`[rss] ${feed.name}: ${msg}`);
+          logger.warn(`[rss] ${feed.name}: ${msg}`);
         }
       }),
     );

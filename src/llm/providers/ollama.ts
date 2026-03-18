@@ -19,8 +19,10 @@ const ollamaProvider: LLMProvider = {
   name: 'Ollama (local)',
 
   isAvailable(): boolean {
-    // Always "available" since OLLAMA_BASE_URL has a default value
-    return Boolean(config.OLLAMA_BASE_URL);
+    // Only available if explicitly enabled via OLLAMA_ENABLED=true
+    // or if a non-default OLLAMA_BASE_URL was explicitly set by the user
+    return process.env['OLLAMA_ENABLED'] === 'true' ||
+      (process.env['OLLAMA_BASE_URL'] !== undefined && Boolean(config.OLLAMA_BASE_URL));
   },
 
   async complete(prompt: string, options?: CompletionOptions): Promise<string> {

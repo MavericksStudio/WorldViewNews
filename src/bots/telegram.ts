@@ -64,6 +64,7 @@ async function telegramRequest(
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
+    signal:  AbortSignal.timeout(method === 'getUpdates' ? 35_000 : 15_000),
   });
 
   const data = await res.json() as { ok: boolean; result?: unknown; description?: string };

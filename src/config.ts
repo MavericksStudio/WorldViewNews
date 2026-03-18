@@ -22,6 +22,9 @@ const configSchema = z.object({
   OPENSKY_USERNAME: z.string().optional(),
   OPENSKY_PASSWORD: z.string().optional(),
 
+  // ─── Maritime ─────────────────────────────────────────────────────────────
+  MARINETRAFFIC_API_KEY: z.string().optional(),
+
   // ─── Economic & Financial ───────────────────────────────────────────────────
   FRED_API_KEY: z.string().optional(),
   EIA_API_KEY: z.string().optional(),

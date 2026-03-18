@@ -34,7 +34,6 @@ import { config }          from './config.js';
 import { logger }          from './logger.js';
 import { registry }        from './sources/registry.js';
 import { runSweep }        from './engine/sweep.js';
-import { startScheduler, stopScheduler } from './engine/scheduler.js';
 import { deltaEngine }     from './engine/delta.js';
 import { alertManager }    from './engine/alerts.js';
 import { createServer }    from './server/http.js';
@@ -125,22 +124,6 @@ async function runSweepWithDelta(): Promise<SweepResult> {
   return result;
 }
 
-// ── First sweep (immediate) ───────────────────────────────────────────────────
-logger.info('sweep: running initial sweep…');
-runSweepWithDelta()
-  .then((result) => {
-    logger.info('sweep: initial sweep complete', {
-      items:   result.items.length,
-      sources: result.sourcesSucceeded + '/' + result.sourcesQueried,
-    });
-    broadcast('sweep', result);
-  })
-  .catch((err) => {
-    logger.error('sweep: initial sweep failed', {
-      err: err instanceof Error ? err.message : String(err),
-    });
-  });
-
 // ── Scheduler ─────────────────────────────────────────────────────────────────
 const INTERVAL_MS = config.SWEEP_INTERVAL_MS;
 
@@ -173,6 +156,12 @@ async function scheduledSweep(): Promise<void> {
   }
 }
 
+// ── First sweep (immediate, through the same guarded path) ───────────────────
+logger.info('sweep: running initial sweep…');
+void scheduledSweep().then(() => {
+  logger.info('sweep: initial sweep complete');
+});
+
 schedulerTimer = setInterval(() => {
   void scheduledSweep();
 }, INTERVAL_MS);
@@ -188,7 +177,6 @@ function shutdown(signal: string): void {
     schedulerTimer = null;
   }
 
-  stopScheduler();
   stopTelegram();
   stopDiscord();
 
