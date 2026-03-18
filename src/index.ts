@@ -30,6 +30,8 @@ import { deltaEngine }     from './engine/delta.js';
 import { alertManager }    from './engine/alerts.js';
 import { createServer }    from './server/http.js';
 import { broadcast }       from './server/sse.js';
+import { startTelegram, stopTelegram, sendAlert as telegramSendAlert } from './bots/telegram.js';
+import { startDiscord,  stopDiscord,  sendAlert as discordSendAlert  } from './bots/discord.js';
 import type { SweepResult } from './types.js';
 
 // ── Banner ────────────────────────────────────────────────────────────────────
@@ -50,6 +52,10 @@ logger.info('sources: registered', {
 // ── HTTP server ───────────────────────────────────────────────────────────────
 const { start } = createServer();
 const httpServer = start(config.PORT);
+
+// ── Bot integrations ──────────────────────────────────────────────────────────
+void startTelegram();
+void startDiscord();
 
 // ── Previous sweep state for delta engine ────────────────────────────────────
 let previousSweep: SweepResult | undefined;
@@ -78,9 +84,11 @@ async function runSweepWithDelta(): Promise<SweepResult> {
         routine:  stats.routine,
       });
 
-      // Broadcast each alert via SSE
+      // Broadcast each alert via SSE and deliver to bots
       for (const alert of alerts) {
         broadcast('alert', alert);
+        void telegramSendAlert(alert);
+        void discordSendAlert(alert);
       }
     }
   }
@@ -152,6 +160,8 @@ function shutdown(signal: string): void {
   }
 
   stopScheduler();
+  stopTelegram();
+  stopDiscord();
 
   httpServer.close(() => {
     logger.info('http: server closed');
