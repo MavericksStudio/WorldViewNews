@@ -240,12 +240,19 @@ export function getDashboardHTML(): string {
       padding: 5px 12px;
       border-bottom: 1px solid var(--border);
       font-size: 0.68rem;
+      cursor: pointer;
+      transition: opacity 0.15s, background 0.12s;
+      user-select: none;
     }
+    .source-item:hover { background: var(--bg-hover); }
     .source-item:last-child { border-bottom: none; }
+    .source-item.disabled { opacity: 0.35; }
+    .source-item.disabled .src-dot.ok { background: var(--text-dim); box-shadow: none; }
     .src-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
     .src-dot.ok  { background: var(--green); box-shadow: 0 0 4px var(--green); }
     .src-dot.off { background: var(--text-dim); }
     .source-name { flex: 1; color: var(--text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .src-toggle { font-size: 0.6rem; color: var(--text-dim); flex-shrink: 0; }
     .source-cat  {
       font-size: 0.58rem;
       font-weight: 600;
@@ -314,6 +321,26 @@ export function getDashboardHTML(): string {
     .sev-btn[data-sev="medium"]   { color: var(--sev-medium);   border-color: var(--yellow-dim);  background: rgba(255,255,0,0.08); }
     .sev-btn[data-sev="high"]     { color: var(--sev-high);     border-color: var(--orange-dim);  background: rgba(255,136,0,0.08); }
     .sev-btn[data-sev="critical"] { color: var(--sev-critical); border-color: var(--red-dim);     background: rgba(255,0,0,0.08); }
+
+    /* ── Time period filter ───────────────────────────────────────────── */
+    .time-btn {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 3px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .time-btn:hover { color: var(--text-sec); border-color: var(--cyan-dim); }
+    .time-btn.active {
+      color: var(--cyan);
+      border-color: var(--cyan);
+      background: rgba(0,255,255,0.08);
+    }
 
     /* ── Sweep control ─────────────────────────────────────────────────── */
     .sweep-body {
@@ -451,12 +478,22 @@ export function getDashboardHTML(): string {
     .ln-player {
       flex: 1;
       position: relative;
+      min-height: 0;
+      overflow: hidden;
     }
     .ln-player iframe {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
       border: none;
+    }
+    .ln-no-stream {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-sec);
+      font-size: 0.8rem;
     }
 
     /* ── Webcams panel ──────────────────────────────────────────────────── */
@@ -1255,6 +1292,23 @@ export function getDashboardHTML(): string {
       </div>
     </div>
 
+    <!-- Time Period Filter -->
+    <div class="panel-section" id="sec-time">
+      <div class="panel-section-header" onclick="toggleSection('sec-time')">
+        <span class="panel-section-title">Time Period</span>
+        <span class="panel-chevron">&#9662;</span>
+      </div>
+      <div class="panel-section-body" id="sec-time-body">
+        <div class="filter-grid" id="time-filters">
+          <button class="time-btn" data-hours="1">1h</button>
+          <button class="time-btn" data-hours="6">6h</button>
+          <button class="time-btn" data-hours="24">24h</button>
+          <button class="time-btn" data-hours="168">7d</button>
+          <button class="time-btn active" data-hours="0">All</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Sweep Control -->
     <div class="panel-section" id="sec-sweep">
       <div class="panel-section-header" onclick="toggleSection('sec-sweep')">
@@ -1582,7 +1636,9 @@ export function getDashboardHTML(): string {
   let allAlerts        = [];
   let activeCategory   = 'all';
   let activeSeverities = new Set(['info', 'low', 'medium', 'high', 'critical']);
-  let currentMapMode   = 'globe'; // 'globe' | 'map'
+  let disabledSources  = new Set();  // source IDs toggled off
+  let activeTimeHours  = 0;          // 0 = all, else filter to last N hours
+  let currentMapMode   = 'globe';    // 'globe' | 'map'
   let summarySectionCollapsed = false;
 
   // Globe state
@@ -1647,9 +1703,14 @@ export function getDashboardHTML(): string {
   }
 
   function filteredItems() {
+    const cutoff = activeTimeHours > 0
+      ? Date.now() - activeTimeHours * 3600_000
+      : 0;
     return allItems.filter((it) =>
       (activeCategory === 'all' || it.category === activeCategory) &&
-      activeSeverities.has(it.severity)
+      activeSeverities.has(it.severity) &&
+      !disabledSources.has(it.source) &&
+      (cutoff === 0 || new Date(it.timestamp).getTime() >= cutoff)
     );
   }
 
@@ -1957,14 +2018,21 @@ export function getDashboardHTML(): string {
     const player = $('ln-player');
     player.innerHTML = '';
 
-    if (ch.videoId) {
+    // Try direct embed with video ID, or fallback to channel live page
+    const videoSrc = ch.videoId
+      ? 'https://www.youtube.com/embed/' + ch.videoId + '?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0'
+      : (ch.handle
+        ? 'https://www.youtube.com/embed/live_stream?channel=' + ch.handle.replace('@','') + '&autoplay=1&mute=1'
+        : null);
+
+    if (videoSrc) {
       const iframe = document.createElement('iframe');
-      iframe.src = 'https://www.youtube.com/embed/' + ch.videoId + '?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0';
+      iframe.src = videoSrc;
       iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
       iframe.allowFullscreen = true;
       player.appendChild(iframe);
     } else {
-      player.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-sec);font-size:0.8rem;">Stream unavailable \u2014 no video ID</div>';
+      player.innerHTML = '<div class="ln-no-stream">Stream unavailable</div>';
     }
 
     // Update active button
@@ -2127,19 +2195,34 @@ export function getDashboardHTML(): string {
     }
     el.innerHTML = allSources.map((s) => {
       const col = CAT_COLOR[s.category] || '#64748b';
+      const off = disabledSources.has(s.id);
       return \`
-        <div class="source-item">
+        <div class="source-item\${off ? ' disabled' : ''}" data-source-id="\${esc(s.id)}" onclick="toggleSource('\${esc(s.id)}')">
           <div class="src-dot \${s.available ? 'ok' : 'off'}"></div>
           <span class="source-name">\${esc(s.name)}</span>
           <span class="source-cat" style="color:\${col};background:\${col}18;border:1px solid \${col}44">\${esc(s.category)}</span>
+          <span class="src-toggle">\${off ? '&#9744;' : '&#9745;'}</span>
         </div>
       \`;
     }).join('');
 
     const avail = allSources.filter((s) => s.available).length;
-    $('ft-sources').textContent = avail + ' / ' + allSources.length;
-    $('hdr-sources').textContent = avail + ' / ' + allSources.length;
-    $('ms-sources').textContent  = avail;
+    const enabled = allSources.length - disabledSources.size;
+    $('ft-sources').textContent = enabled + ' / ' + allSources.length;
+    $('hdr-sources').textContent = enabled + ' / ' + allSources.length;
+    $('ms-sources').textContent  = enabled;
+  }
+
+  function toggleSource(sourceId) {
+    if (disabledSources.has(sourceId)) {
+      disabledSources.delete(sourceId);
+    } else {
+      disabledSources.add(sourceId);
+    }
+    renderSources();
+    renderFeed();
+    updateGlobe();
+    if (leafletReady) updateLeaflet();
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -2453,6 +2536,7 @@ export function getDashboardHTML(): string {
   window.toggleSection   = toggleSection;
   window.toggleSummary   = toggleSummary;
   window.switchMap       = switchMap;
+  window.toggleSource    = toggleSource;
 
   function setSweepRunning(running) {
     const status = running ? 'Sweeping…' : 'Idle';
@@ -2637,6 +2721,21 @@ export function getDashboardHTML(): string {
         activeSeverities.add(sev);
         btn.classList.add('active');
       }
+      renderFeed();
+      updateGlobe();
+      if (leafletReady) updateLeaflet();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Time Period Filter
+  // ═══════════════════════════════════════════════════════════════════
+
+  document.querySelectorAll('.time-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeTimeHours = parseInt(btn.dataset.hours, 10) || 0;
+      document.querySelectorAll('.time-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
       renderFeed();
       updateGlobe();
       if (leafletReady) updateLeaflet();

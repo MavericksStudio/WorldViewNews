@@ -27,7 +27,7 @@ const ollamaProvider: LLMProvider = {
 
   async complete(prompt: string, options?: CompletionOptions): Promise<string> {
     const baseUrl = config.OLLAMA_BASE_URL;
-    const model = 'llama3.2';
+    const model = process.env['OLLAMA_MODEL'] || 'gemma3';
     const url = `${baseUrl}/api/generate`;
 
     const body: Record<string, unknown> = {
