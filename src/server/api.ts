@@ -32,6 +32,10 @@ router.get('/status', (_req: Request, res: Response) => {
     itemCount: memory.getAllItems().length,
     lastSweepAt: latest?.completedAt ?? null,
     alertStats: alertManager.getStats(),
+    llm: {
+      available: llmRegistry.isAnyAvailable(),
+      providers: llmRegistry.getAvailable().map((p) => p.id),
+    },
   });
 });
 
