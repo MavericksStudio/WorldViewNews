@@ -2530,15 +2530,40 @@ export function getDashboardHTML(): string {
 
   let digestRegionFilter = 'all';
 
+  // Map feed region tags to digest continents
+  const TAG_REGION_MAP = {
+    'africa': 'africa',
+    'americas': 'americas',
+    'asia': 'asia',
+    'europe': 'europe',
+    'middle-east': 'middle-east',
+    'oceania': 'oceania',
+    'space': 'global',
+  };
+
   function getContinent(item) {
+    // 1. Check tags for feed region (most reliable for RSS items)
+    const tags = item.tags || [];
+    for (const tag of tags) {
+      const mapped = TAG_REGION_MAP[tag];
+      if (mapped) return mapped;
+    }
+    // 2. Check geotagged country
     if (item.location && item.location.country) {
       const c = CONTINENT_MAP[item.location.country];
       if (c) return c;
     }
-    // Try to infer from source name
+    // 3. Infer from source ID
     const src = (item.source || '').toLowerCase();
     if (src.includes('fred') || src.includes('eia') || src.includes('usgs')) return 'americas';
+    if (src.includes('acled') || src.includes('gdelt') || src.includes('ucdp')) return 'global';
     return 'global';
+  }
+
+  function getSourceLabel(item) {
+    // Use feed name from raw data if available, otherwise source id
+    if (item.raw && item.raw.feed) return item.raw.feed;
+    return item.source || 'Unknown';
   }
 
   function renderDigest() {
@@ -2578,7 +2603,7 @@ export function getDashboardHTML(): string {
           + '<div class="digest-body">'
           + '<div class="digest-title">' + titleHtml + '</div>'
           + '<div class="digest-meta">'
-          + '<span class="digest-source">' + esc(it.source) + '</span>'
+          + '<span class="digest-source">' + esc(getSourceLabel(it)) + '</span>'
           + (country ? '<span class="digest-country">' + esc(country) + '</span>' : '')
           + '<span style="color:' + catCol + '">' + esc(it.category) + '</span>'
           + '<span>' + timeAgo(it.timestamp) + '</span>'
