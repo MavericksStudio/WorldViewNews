@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: worldviewnews
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/v1/status
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: NODE_ENV
+        value: production
+      - key: SWEEP_INTERVAL_MS
+        value: "900000"
+      - key: LOG_LEVEL
+        value: info
+      - key: DATA_DIR
+        value: ./data
