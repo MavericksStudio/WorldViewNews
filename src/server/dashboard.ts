@@ -633,6 +633,107 @@ export function getDashboardHTML(): string {
     .wc-feed-btn:hover { color: var(--text-prim); }
     .wc-feed-btn.active { color: var(--cyan); border-color: var(--cyan); }
 
+    /* ── News Digest panel ─────────────────────────────────────────────── */
+    #digest-wrap {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      background: var(--bg-deep);
+    }
+    .digest-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+    }
+    .digest-regions { display: flex; gap: 4px; flex-wrap: wrap; }
+    .digest-region-btn {
+      padding: 4px 10px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--text-sec);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .digest-region-btn:hover { color: var(--text-prim); border-color: var(--cyan-dim); }
+    .digest-region-btn.active { color: var(--cyan); border-color: var(--cyan); background: rgba(0,255,255,0.08); }
+    .digest-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    .digest-continent {
+      margin-bottom: 16px;
+    }
+    .digest-continent-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      margin-bottom: 6px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      background: linear-gradient(90deg, rgba(0,255,255,0.08), transparent);
+      border-left: 3px solid var(--cyan);
+      border-radius: 0 4px 4px 0;
+    }
+    .digest-continent-header .digest-count {
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+    .digest-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.12s;
+    }
+    .digest-item:hover { background: var(--bg-hover); }
+    .digest-item:last-child { border-bottom: none; }
+    .digest-sev {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+    .digest-sev.info     { background: var(--sev-info); box-shadow: 0 0 4px var(--sev-info); }
+    .digest-sev.low      { background: var(--sev-low); box-shadow: 0 0 4px var(--sev-low); }
+    .digest-sev.medium   { background: var(--sev-medium); box-shadow: 0 0 4px var(--sev-medium); }
+    .digest-sev.high     { background: var(--sev-high); box-shadow: 0 0 4px var(--sev-high); }
+    .digest-sev.critical { background: var(--sev-critical); box-shadow: 0 0 4px var(--sev-critical); }
+    .digest-body { flex: 1; min-width: 0; }
+    .digest-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-prim);
+      line-height: 1.3;
+    }
+    .digest-title a {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.12s;
+    }
+    .digest-title a:hover { color: var(--cyan); }
+    .digest-meta {
+      display: flex;
+      gap: 8px;
+      margin-top: 3px;
+      font-size: 0.6rem;
+      color: var(--text-dim);
+    }
+    .digest-meta .digest-source { color: var(--text-sec); font-weight: 600; }
+    .digest-meta .digest-country { color: var(--purple); }
+
     /* ── Floating mini-stats overlay ───────────────────────────────────── */
     #map-stats {
       position: absolute;
@@ -1379,6 +1480,7 @@ export function getDashboardHTML(): string {
       <div class="map-tab" id="tab-map" onclick="switchMap('map')">&#128507; 2D Map</div>
       <div class="map-tab" id="tab-livenews" onclick="switchMap('livenews')">&#128250; Live News</div>
       <div class="map-tab" id="tab-webcams" onclick="switchMap('webcams')">&#128247; Webcams</div>
+      <div class="map-tab" id="tab-digest" onclick="switchMap('digest')">&#128240; News Digest</div>
     </div>
 
     <!-- Globe -->
@@ -1415,6 +1517,23 @@ export function getDashboardHTML(): string {
         </div>
       </div>
       <div class="wc-content" id="wc-content"></div>
+    </div>
+
+    <!-- News Digest by Continent -->
+    <div id="digest-wrap">
+      <div class="digest-toolbar">
+        <div class="digest-regions">
+          <button class="digest-region-btn active" data-region="all">All</button>
+          <button class="digest-region-btn" data-region="africa">Africa</button>
+          <button class="digest-region-btn" data-region="americas">Americas</button>
+          <button class="digest-region-btn" data-region="asia">Asia</button>
+          <button class="digest-region-btn" data-region="europe">Europe</button>
+          <button class="digest-region-btn" data-region="middle-east">Middle East</button>
+          <button class="digest-region-btn" data-region="oceania">Oceania</button>
+          <button class="digest-region-btn" data-region="global">Global / Other</button>
+        </div>
+      </div>
+      <div class="digest-content" id="digest-content"></div>
     </div>
 
     <!-- Floating stats overlay -->
@@ -1765,6 +1884,7 @@ export function getDashboardHTML(): string {
     $('map-wrap').style.display        = view === 'map'      ? 'flex' : 'none';
     $('livenews-wrap').style.display   = view === 'livenews' ? 'flex' : 'none';
     $('webcams-wrap').style.display    = view === 'webcams'  ? 'flex' : 'none';
+    $('digest-wrap').style.display     = view === 'digest'   ? 'flex' : 'none';
 
     // Keep map-hint visible only for globe/map views
     if ($('map-hint')) {
@@ -1790,6 +1910,7 @@ export function getDashboardHTML(): string {
     // Lazy init for live panels
     if (view === 'livenews') { initLiveNews(); }
     if (view === 'webcams')  { initWebcams(); }
+    if (view === 'digest')   { renderDigest(); }
 
     // Destroy iframes when leaving live tabs to save bandwidth
     if (view !== 'livenews') { destroyLiveNews(); }
@@ -2326,6 +2447,154 @@ export function getDashboardHTML(): string {
   }
 
   // ═══════════════════════════════════════════════════════════════════
+  //  Render: News Digest by Continent
+  // ═══════════════════════════════════════════════════════════════════
+
+  const CONTINENT_MAP = {
+    // Africa
+    'Algeria': 'africa', 'Angola': 'africa', 'Benin': 'africa', 'Botswana': 'africa',
+    'Burkina Faso': 'africa', 'Burundi': 'africa', 'Cameroon': 'africa', 'Cape Verde': 'africa',
+    'Central African Republic': 'africa', 'Chad': 'africa', 'Comoros': 'africa', 'Congo': 'africa',
+    'DR Congo': 'africa', 'Djibouti': 'africa', 'Egypt': 'africa', 'Equatorial Guinea': 'africa',
+    'Eritrea': 'africa', 'Eswatini': 'africa', 'Ethiopia': 'africa', 'Gabon': 'africa',
+    'Gambia': 'africa', 'Ghana': 'africa', 'Guinea': 'africa', 'Guinea-Bissau': 'africa',
+    'Ivory Coast': 'africa', 'Kenya': 'africa', 'Lesotho': 'africa', 'Liberia': 'africa',
+    'Libya': 'africa', 'Madagascar': 'africa', 'Malawi': 'africa', 'Mali': 'africa',
+    'Mauritania': 'africa', 'Mauritius': 'africa', 'Morocco': 'africa', 'Mozambique': 'africa',
+    'Namibia': 'africa', 'Niger': 'africa', 'Nigeria': 'africa', 'Rwanda': 'africa',
+    'Senegal': 'africa', 'Sierra Leone': 'africa', 'Somalia': 'africa', 'South Africa': 'africa',
+    'South Sudan': 'africa', 'Sudan': 'africa', 'Tanzania': 'africa', 'Togo': 'africa',
+    'Tunisia': 'africa', 'Uganda': 'africa', 'Zambia': 'africa', 'Zimbabwe': 'africa',
+    // Americas
+    'Argentina': 'americas', 'Bolivia': 'americas', 'Brazil': 'americas', 'Canada': 'americas',
+    'Chile': 'americas', 'Colombia': 'americas', 'Costa Rica': 'americas', 'Cuba': 'americas',
+    'Dominican Republic': 'americas', 'Ecuador': 'americas', 'El Salvador': 'americas',
+    'Guatemala': 'americas', 'Haiti': 'americas', 'Honduras': 'americas', 'Jamaica': 'americas',
+    'Mexico': 'americas', 'Nicaragua': 'americas', 'Panama': 'americas', 'Paraguay': 'americas',
+    'Peru': 'americas', 'Puerto Rico': 'americas', 'Trinidad and Tobago': 'americas',
+    'United States': 'americas', 'USA': 'americas', 'US': 'americas', 'Uruguay': 'americas',
+    'Venezuela': 'americas',
+    // Asia
+    'Afghanistan': 'asia', 'Bangladesh': 'asia', 'Bhutan': 'asia', 'Brunei': 'asia',
+    'Cambodia': 'asia', 'China': 'asia', 'India': 'asia', 'Indonesia': 'asia', 'Japan': 'asia',
+    'Kazakhstan': 'asia', 'Kyrgyzstan': 'asia', 'Laos': 'asia', 'Malaysia': 'asia',
+    'Maldives': 'asia', 'Mongolia': 'asia', 'Myanmar': 'asia', 'Nepal': 'asia',
+    'North Korea': 'asia', 'Pakistan': 'asia', 'Philippines': 'asia', 'Singapore': 'asia',
+    'South Korea': 'asia', 'Sri Lanka': 'asia', 'Taiwan': 'asia', 'Tajikistan': 'asia',
+    'Thailand': 'asia', 'Timor-Leste': 'asia', 'Turkmenistan': 'asia', 'Uzbekistan': 'asia',
+    'Vietnam': 'asia',
+    // Europe
+    'Albania': 'europe', 'Andorra': 'europe', 'Armenia': 'europe', 'Austria': 'europe',
+    'Azerbaijan': 'europe', 'Belarus': 'europe', 'Belgium': 'europe', 'Bosnia and Herzegovina': 'europe',
+    'Bulgaria': 'europe', 'Croatia': 'europe', 'Cyprus': 'europe', 'Czech Republic': 'europe',
+    'Czechia': 'europe', 'Denmark': 'europe', 'Estonia': 'europe', 'Finland': 'europe',
+    'France': 'europe', 'Georgia': 'europe', 'Germany': 'europe', 'Greece': 'europe',
+    'Hungary': 'europe', 'Iceland': 'europe', 'Ireland': 'europe', 'Italy': 'europe',
+    'Kosovo': 'europe', 'Latvia': 'europe', 'Lithuania': 'europe', 'Luxembourg': 'europe',
+    'Malta': 'europe', 'Moldova': 'europe', 'Monaco': 'europe', 'Montenegro': 'europe',
+    'Netherlands': 'europe', 'North Macedonia': 'europe', 'Norway': 'europe', 'Poland': 'europe',
+    'Portugal': 'europe', 'Romania': 'europe', 'Russia': 'europe', 'Serbia': 'europe',
+    'Slovakia': 'europe', 'Slovenia': 'europe', 'Spain': 'europe', 'Sweden': 'europe',
+    'Switzerland': 'europe', 'Turkey': 'europe', 'Ukraine': 'europe', 'United Kingdom': 'europe',
+    'UK': 'europe',
+    // Middle East
+    'Bahrain': 'middle-east', 'Iran': 'middle-east', 'Iraq': 'middle-east', 'Israel': 'middle-east',
+    'Jordan': 'middle-east', 'Kuwait': 'middle-east', 'Lebanon': 'middle-east', 'Oman': 'middle-east',
+    'Palestine': 'middle-east', 'Qatar': 'middle-east', 'Saudi Arabia': 'middle-east',
+    'Syria': 'middle-east', 'United Arab Emirates': 'middle-east', 'UAE': 'middle-east',
+    'Yemen': 'middle-east',
+    // Oceania
+    'Australia': 'oceania', 'Fiji': 'oceania', 'New Zealand': 'oceania',
+    'Papua New Guinea': 'oceania', 'Samoa': 'oceania', 'Tonga': 'oceania', 'Vanuatu': 'oceania',
+  };
+
+  const CONTINENT_LABELS = {
+    'africa': 'Africa',
+    'americas': 'Americas',
+    'asia': 'Asia',
+    'europe': 'Europe',
+    'middle-east': 'Middle East',
+    'oceania': 'Oceania',
+    'global': 'Global / Other',
+  };
+
+  const CONTINENT_EMOJI = {
+    'africa': '\\u{1F30D}',
+    'americas': '\\u{1F30E}',
+    'asia': '\\u{1F30F}',
+    'europe': '\\u{1F30D}',
+    'middle-east': '\\u{1F54C}',
+    'oceania': '\\u{1F3DD}',
+    'global': '\\u{1F310}',
+  };
+
+  let digestRegionFilter = 'all';
+
+  function getContinent(item) {
+    if (item.location && item.location.country) {
+      const c = CONTINENT_MAP[item.location.country];
+      if (c) return c;
+    }
+    // Try to infer from source name
+    const src = (item.source || '').toLowerCase();
+    if (src.includes('fred') || src.includes('eia') || src.includes('usgs')) return 'americas';
+    return 'global';
+  }
+
+  function renderDigest() {
+    const items = filteredItems().slice().reverse();
+    const grouped = {};
+
+    for (const it of items) {
+      const continent = getContinent(it);
+      if (!grouped[continent]) grouped[continent] = [];
+      grouped[continent].push(it);
+    }
+
+    const el = $('digest-content');
+    const order = ['africa', 'americas', 'asia', 'europe', 'middle-east', 'oceania', 'global'];
+    const regions = digestRegionFilter === 'all' ? order : [digestRegionFilter];
+
+    let html = '';
+    for (const region of regions) {
+      const regionItems = grouped[region];
+      if (!regionItems || regionItems.length === 0) continue;
+
+      html += '<div class="digest-continent">';
+      html += '<div class="digest-continent-header">'
+        + CONTINENT_EMOJI[region] + ' ' + CONTINENT_LABELS[region]
+        + ' <span class="digest-count">(' + regionItems.length + ')</span>'
+        + '</div>';
+
+      for (const it of regionItems.slice(0, 50)) {
+        const catCol = CAT_COLOR[it.category] || '#64748b';
+        const country = it.location && it.location.country ? it.location.country : '';
+        const titleHtml = it.url
+          ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(it.title) + ' &#8599;</a>'
+          : esc(it.title);
+
+        html += '<div class="digest-item">'
+          + '<div class="digest-sev ' + it.severity + '"></div>'
+          + '<div class="digest-body">'
+          + '<div class="digest-title">' + titleHtml + '</div>'
+          + '<div class="digest-meta">'
+          + '<span class="digest-source">' + esc(it.source) + '</span>'
+          + (country ? '<span class="digest-country">' + esc(country) + '</span>' : '')
+          + '<span style="color:' + catCol + '">' + esc(it.category) + '</span>'
+          + '<span>' + timeAgo(it.timestamp) + '</span>'
+          + '</div></div></div>';
+      }
+      html += '</div>';
+    }
+
+    if (!html) {
+      html = '<div class="empty-state">No news items available yet. Waiting for sweep data.</div>';
+    }
+
+    el.innerHTML = html;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
   //  Render: AI Summary
   // ═══════════════════════════════════════════════════════════════════
 
@@ -2739,6 +3008,19 @@ export function getDashboardHTML(): string {
       renderFeed();
       updateGlobe();
       if (leafletReady) updateLeaflet();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  News Digest Region Filter
+  // ═══════════════════════════════════════════════════════════════════
+
+  document.querySelectorAll('.digest-region-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      digestRegionFilter = btn.dataset.region || 'all';
+      document.querySelectorAll('.digest-region-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderDigest();
     });
   });
 
