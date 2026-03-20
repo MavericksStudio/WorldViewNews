@@ -63,9 +63,10 @@ class LLMRegistryImpl implements LLMRegistry {
 
     if (available.length === 0) {
       logger.warn('llm: no provider available');
-      return 'No LLM provider available';
+      throw new Error('No LLM provider available');
     }
 
+    let lastError: Error | undefined;
     for (const provider of available) {
       try {
         logger.debug('llm: trying provider', { id: provider.id });
@@ -73,15 +74,16 @@ class LLMRegistryImpl implements LLMRegistry {
         logger.info('llm: completion succeeded', { provider: provider.id });
         return result;
       } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
         logger.warn('llm: provider failed, trying next', {
           provider: provider.id,
-          err: err instanceof Error ? err.message : String(err),
+          err: lastError.message,
         });
       }
     }
 
     logger.error('llm: all providers failed');
-    return 'No LLM provider available';
+    throw new Error(`All LLM providers failed. Last error: ${lastError?.message ?? 'unknown'}`);
   }
 }
 
