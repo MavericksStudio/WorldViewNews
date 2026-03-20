@@ -2917,7 +2917,7 @@ export function getDashboardHTML(): string {
   async function fetchAll() {
     try {
       const [itemsRes, sourcesRes, statusRes, alertsRes, summaryRes] = await Promise.allSettled([
-        fetch('/api/v1/items'),
+        fetch('/api/v1/items?limit=500'),
         fetch('/api/v1/sources'),
         fetch('/api/v1/status'),
         fetch('/api/v1/alerts?limit=50'),
