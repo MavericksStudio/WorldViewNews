@@ -1590,6 +1590,12 @@ export function getDashboardHTML(): string {
       <div id="summary-body">
         <div class="empty-state">No summary yet — LLM analysis required.</div>
       </div>
+      <button id="generate-summary-btn" onclick="generateSummary()" style="
+        width:100%;padding:6px;margin-top:4px;font-size:0.65rem;font-weight:700;
+        letter-spacing:0.05em;color:var(--purple);background:rgba(139,92,246,0.08);
+        border:1px solid var(--purple-dim);border-radius:4px;cursor:pointer;
+        transition:all 0.15s;
+      ">GENERATE SUMMARY</button>
     </div>
 
   </aside>
@@ -1870,6 +1876,34 @@ export function getDashboardHTML(): string {
     summarySectionCollapsed = !summarySectionCollapsed;
     $('summary-section').classList.toggle('collapsed', summarySectionCollapsed);
     $('summary-chevron').style.transform = summarySectionCollapsed ? 'rotate(-90deg)' : '';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Generate AI Summary (manual trigger)
+  // ═══════════════════════════════════════════════════════════════════
+
+  async function generateSummary() {
+    const btn = $('generate-summary-btn');
+    btn.disabled = true;
+    btn.textContent = 'GENERATING...';
+    $('summary-body').innerHTML = '<div class="empty-state">Generating summary with AI...</div>';
+
+    try {
+      const res = await fetch('/api/v1/summary/generate', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.summary) {
+        renderSummary(data.summary);
+      } else {
+        $('summary-body').innerHTML = '<div class="empty-state" style="color:var(--orange)">'
+          + 'Error: ' + esc(data.error || 'Unknown error') + '</div>';
+      }
+    } catch (e) {
+      $('summary-body').innerHTML = '<div class="empty-state" style="color:var(--red)">'
+        + 'Network error: ' + esc(e.message) + '</div>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'GENERATE SUMMARY';
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -2530,33 +2564,52 @@ export function getDashboardHTML(): string {
 
   let digestRegionFilter = 'all';
 
-  // Map feed region tags to digest continents
-  const TAG_REGION_MAP = {
-    'africa': 'africa',
-    'americas': 'americas',
-    'asia': 'asia',
-    'europe': 'europe',
-    'middle-east': 'middle-east',
-    'oceania': 'oceania',
-    'space': 'global',
+  // Map feed names to their PRIMARY coverage region (not HQ location)
+  // Only include feeds that are clearly country/region-specific
+  const FEED_REGION_MAP = {
+    // US-focused outlets
+    'fox news': 'americas', 'npr': 'americas', 'nbc news': 'americas',
+    'abc news': 'americas', 'cbs news': 'americas', 'washington post': 'americas',
+    'new york times': 'americas', 'politico': 'americas', 'the hill': 'americas',
+    'u.s. department': 'americas', 'u.s. state': 'americas', 'cnn': 'americas',
+    // Brazil-focused outlets
+    'uol': 'americas', 'folha': 'americas', 'estad': 'americas',
+    'g1': 'americas', 'globo': 'americas', 'ag\\u00eancia brasil': 'americas',
+    'poder360': 'americas', 'valor econ': 'americas', 'infomoney': 'americas',
+    // South Asia
+    'ndtv': 'asia', 'dawn': 'asia', 'times of india': 'asia',
+    // East Asia
+    'xinhua': 'asia', 'cgtn': 'asia', 'nhk': 'asia',
+    'straits times': 'asia', 'south china': 'asia',
+    // Russia / Eurasia
+    'tass': 'europe',
+    // Turkey
+    'anadolu': 'middle-east',
+    // Latin America
+    'prensa latina': 'americas',
   };
 
   function getContinent(item) {
-    // 1. Check tags for feed region (most reliable for RSS items)
-    const tags = item.tags || [];
-    for (const tag of tags) {
-      const mapped = TAG_REGION_MAP[tag];
-      if (mapped) return mapped;
-    }
-    // 2. Check geotagged country
+    // 1. Best signal: geotagged country from article text
     if (item.location && item.location.country) {
       const c = CONTINENT_MAP[item.location.country];
       if (c) return c;
     }
-    // 3. Infer from source ID
+    // 2. Feed name pattern matching (country-specific outlets)
+    const feedName = (item.raw && item.raw.feed || '').toLowerCase();
+    if (feedName) {
+      for (const [pattern, region] of Object.entries(FEED_REGION_MAP)) {
+        if (feedName.includes(pattern)) return region;
+      }
+    }
+    // 3. Language hint: Portuguese feeds are Brazilian
+    const tags = item.tags || [];
+    if (tags.includes('pt')) return 'americas';
+    // 4. Source-specific defaults for non-RSS sources
     const src = (item.source || '').toLowerCase();
     if (src.includes('fred') || src.includes('eia') || src.includes('usgs')) return 'americas';
-    if (src.includes('acled') || src.includes('gdelt') || src.includes('ucdp')) return 'global';
+    if (src.includes('opensky') || src.includes('finnhub') || src.includes('coingecko')) return 'global';
+    // 5. Default: global (honest — we don't know)
     return 'global';
   }
 
@@ -2829,6 +2882,7 @@ export function getDashboardHTML(): string {
   window.triggerSweep    = triggerSweep;
   window.toggleSection   = toggleSection;
   window.toggleSummary   = toggleSummary;
+  window.generateSummary = generateSummary;
   window.switchMap       = switchMap;
   window.toggleSource    = toggleSource;
 

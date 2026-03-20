@@ -15,6 +15,7 @@ import { findCorrelations } from '../analysis/correlation.js';
 import { calculateCII } from '../analysis/cii.js';
 import { generateTradeIdeas } from '../analysis/trade-ideas.js';
 import { llmRegistry } from '../llm/registry.js';
+import { summarizeSweep } from '../llm/summarizer.js';
 import type { Severity, SourceCategory, AlertTier } from '../types.js';
 import { logger } from '../logger.js';
 
@@ -146,6 +147,46 @@ router.get('/summary/latest', (_req: Request, res: Response) => {
     return;
   }
   res.json(latest);
+});
+
+// ─── POST /api/v1/summary/generate ────────────────────────────────────────────
+
+router.post('/summary/generate', async (_req: Request, res: Response) => {
+  if (!llmRegistry.isAnyAvailable()) {
+    res.status(503).json({
+      error: 'No LLM provider available.',
+      providers: llmRegistry.getAvailable().map((p) => p.id),
+    });
+    return;
+  }
+
+  const items = memory.getAllItems();
+  if (items.length === 0) {
+    res.status(404).json({ error: 'No items available. Wait for a sweep to complete.' });
+    return;
+  }
+
+  // Build a minimal SweepResult for the summarizer
+  const latest = memory.getLatest();
+  if (!latest) {
+    res.status(404).json({ error: 'No sweep results available yet.' });
+    return;
+  }
+
+  try {
+    const summary = await summarizeSweep(latest);
+    if (summary) {
+      summaryStore.store({ sweepId: latest.sweepId, summary, generatedAt: new Date() });
+      broadcast('summary', { sweepId: latest.sweepId, summary });
+      res.json({ success: true, summary });
+    } else {
+      res.status(500).json({ error: 'Summary generation returned null.' });
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('api: summary generation failed', { error: message });
+    res.status(500).json({ error: message });
+  }
 });
 
 // ─── GET /api/v1/analysis/correlations ────────────────────────────────────────
