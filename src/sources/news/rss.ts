@@ -15,6 +15,7 @@ import { logger } from '../../logger.js';
 const MAX_ITEMS_PER_FEED = 10;
 const MAX_TOTAL_ITEMS = 100;
 const FETCH_TIMEOUT_MS = 10_000;
+const MAX_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
 
 // ─── Minimal XML helpers ──────────────────────────────────────────────────────
 
@@ -129,7 +130,11 @@ const source: DataSource = {
           const xml = await res.text();
           const parsed = parseItems(xml).slice(0, MAX_ITEMS_PER_FEED);
 
+          const cutoff = new Date(Date.now() - MAX_AGE_MS);
+
           for (const item of parsed) {
+            if (item.pubDate < cutoff) continue; // skip old articles
+
             const searchText = `${item.title} ${item.description}`;
             const location = geoTag(searchText);
 
