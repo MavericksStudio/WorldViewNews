@@ -173,15 +173,32 @@ router.post('/summary/generate', async (_req: Request, res: Response) => {
     return;
   }
 
+  // Call LLM directly (not through summarizeSweep which swallows errors)
+  const topItems = latest.items.slice(0, 50);
+  if (topItems.length === 0) {
+    res.status(404).json({ error: `Latest sweep has 0 items (${latest.sourcesSucceeded}/${latest.sourcesQueried} sources succeeded).` });
+    return;
+  }
+
+  const itemLines = topItems.map((it) => {
+    const loc = it.location ? ` [${it.location.name}${it.location.country ? ', ' + it.location.country : ''}]` : '';
+    return `- [${it.category.toUpperCase()}][${it.severity}]${loc} ${it.title}: ${it.description}`;
+  }).join('\n');
+
+  const prompt =
+    `Analyze these intelligence items and provide a brief situational awareness summary (3-5 sentences).\n` +
+    `Focus on the most significant events, geographic hotspots, and any concerning patterns.\n` +
+    `Items from sweep ${latest.sweepId} (${latest.items.length} total, ${latest.sourcesSucceeded}/${latest.sourcesQueried} sources succeeded):\n\n` +
+    itemLines;
+
   try {
-    const summary = await summarizeSweep(latest);
-    if (summary) {
-      summaryStore.store({ sweepId: latest.sweepId, summary, generatedAt: new Date() });
-      broadcast('summary', { sweepId: latest.sweepId, summary });
-      res.json({ success: true, summary });
-    } else {
-      res.status(500).json({ error: 'Summary generation returned null.' });
-    }
+    const summary = await llmRegistry.complete(prompt, {
+      maxTokens: 512,
+      systemPrompt: 'You are a professional intelligence analyst providing concise situational awareness briefings.',
+    });
+    summaryStore.store({ sweepId: latest.sweepId, summary, generatedAt: new Date() });
+    broadcast('summary', { sweepId: latest.sweepId, summary });
+    res.json({ success: true, summary });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error('api: summary generation failed', { error: message });
