@@ -13,7 +13,7 @@ export function getDashboardHTML(): string {
   <title>WorldViewNews — Global Intelligence Monitor</title>
 
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
     /* ── Reset & Variables ─────────────────────────────────────────────── */
@@ -1651,9 +1651,9 @@ export function getDashboardHTML(): string {
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <!--  CDN Libraries                                                        -->
 <!-- ══════════════════════════════════════════════════════════════════════ -->
-<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-<script src="https://unpkg.com/globe.gl@2.32.0/dist/globe.gl.min.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.32.0/dist/globe.gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <!--  APPLICATION SCRIPT                                                   -->
@@ -3109,9 +3109,14 @@ export function getDashboardHTML(): string {
 
   async function boot() {
     initSectionHeights();
-    initGlobe();
+
+    // Fetch data first — don't let globe init block the dashboard
     await fetchAll();
     connectSSE();
+
+    // Globe init is non-critical — don't crash boot if CDN failed
+    try { initGlobe(); } catch (e) { console.warn('Globe init failed:', e); }
+
     fetchMarketData();
 
     // Periodic refresh every 20s
@@ -3120,7 +3125,7 @@ export function getDashboardHTML(): string {
     setInterval(fetchMarketData, 60000);
   }
 
-  boot();
+  boot().catch((e) => console.error('Boot failed:', e));
 
 })();
 </script>
