@@ -1,10 +1,12 @@
 /**
- * Cold storage: persists sweep results as daily JSON files.
- * Each file is a JSON array of SweepResult objects.
- * Filename format: DATA_DIR/archives/YYYY-MM-DD.json
+ * Cold storage: persists sweep results as daily NDJSON files (one JSON line per sweep).
+ * Filename format: DATA_DIR/archives/YYYY-MM-DD.ndjson
+ *
+ * Uses append-only writes to avoid reading the entire file into memory,
+ * which previously caused OOM crashes on memory-constrained hosts.
  */
 
-import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
+import { mkdir, appendFile, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { config } from '../config.js';
 import { logger } from '../logger.js';
@@ -18,7 +20,7 @@ function dateToFilename(date: Date): string {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}.json`;
+  return `${yyyy}-${mm}-${dd}.ndjson`;
 }
 
 /**
@@ -36,30 +38,13 @@ function dateReviver(_key: string, value: unknown): unknown {
   return value;
 }
 
-/** Appends a SweepResult to today's archive file, creating it if necessary. */
+/** Appends a SweepResult as a single JSON line to today's archive file. */
 export async function archive(result: SweepResult): Promise<void> {
   const dir = archivesDir();
   await mkdir(dir, { recursive: true });
 
   const filepath = join(dir, dateToFilename(result.startedAt));
-
-  let existing: SweepResult[] = [];
-  try {
-    const raw = await readFile(filepath, 'utf-8');
-    existing = JSON.parse(raw, dateReviver) as SweepResult[];
-  } catch (err) {
-    // File doesn't exist yet or is malformed — start fresh.
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code !== 'ENOENT') {
-      logger.warn('archive: could not read existing file, starting fresh', {
-        filepath,
-        err: String(err),
-      });
-    }
-  }
-
-  existing.push(result);
-  await writeFile(filepath, JSON.stringify(existing, null, 2), 'utf-8');
+  await appendFile(filepath, JSON.stringify(result) + '\n', 'utf-8');
 }
 
 /** Loads all sweep results for the given date. Returns [] if no archive exists. */
@@ -67,7 +52,10 @@ export async function loadDay(date: Date): Promise<SweepResult[]> {
   const filepath = join(archivesDir(), dateToFilename(date));
   try {
     const raw = await readFile(filepath, 'utf-8');
-    return JSON.parse(raw, dateReviver) as SweepResult[];
+    return raw
+      .split('\n')
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line, dateReviver) as SweepResult);
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
     if (code === 'ENOENT') return [];
@@ -85,8 +73,8 @@ export async function listDays(): Promise<string[]> {
   try {
     const entries = await readdir(dir);
     return entries
-      .filter((e) => /^\d{4}-\d{2}-\d{2}\.json$/.test(e))
-      .map((e) => e.replace('.json', ''))
+      .filter((e) => /^\d{4}-\d{2}-\d{2}\.ndjson$/.test(e))
+      .map((e) => e.replace('.ndjson', ''))
       .sort();
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
