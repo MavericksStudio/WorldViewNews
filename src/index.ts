@@ -25,6 +25,7 @@ import './llm/providers/ollama.js';
 import './llm/providers/anthropic.js';
 import './llm/providers/openai.js';
 import './llm/providers/gemini.js';
+import './llm/providers/groq.js';
 import './llm/providers/openrouter.js';
 import './llm/providers/codex.js';
 import './llm/providers/minimax.js';

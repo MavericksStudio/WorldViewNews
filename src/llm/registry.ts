@@ -10,6 +10,7 @@ const PROVIDER_ORDER = [
   'ollama',
   'anthropic',
   'openai',
+  'groq',
   'gemini',
   'openrouter',
   'codex',
