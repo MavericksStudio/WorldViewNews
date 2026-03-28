@@ -422,22 +422,10 @@ export function getDashboardHTML(): string {
       border-bottom-color: var(--cyan);
     }
 
-    /* ── Globe container ───────────────────────────────────────────────── */
-    #globe-wrap {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-    }
-    #globe-el {
-      width: 100%;
-      height: 100%;
-    }
-
     /* ── Leaflet map container ─────────────────────────────────────────── */
     #map-wrap {
       flex: 1;
       position: relative;
-      display: none;
     }
     #leaflet-map {
       width: 100%;
@@ -1476,22 +1464,16 @@ export function getDashboardHTML(): string {
 
     <!-- Tab bar -->
     <div id="map-tabs">
-      <div class="map-tab active" id="tab-globe" onclick="switchMap('globe')">&#127760; 3D Globe</div>
-      <div class="map-tab" id="tab-map" onclick="switchMap('map')">&#128507; 2D Map</div>
+      <div class="map-tab active" id="tab-map" onclick="switchMap('map')">&#128507; 2D Map</div>
       <div class="map-tab" id="tab-livenews" onclick="switchMap('livenews')">&#128250; Live News</div>
       <div class="map-tab" id="tab-webcams" onclick="switchMap('webcams')">&#128247; Webcams</div>
       <div class="map-tab" id="tab-digest" onclick="switchMap('digest')">&#128240; News Digest</div>
     </div>
 
-    <!-- Globe -->
-    <div id="globe-wrap">
-      <div id="globe-el"></div>
-      <div id="map-hint">Drag to rotate · Scroll to zoom</div>
-    </div>
-
     <!-- Leaflet 2D map -->
-    <div id="map-wrap">
+    <div id="map-wrap" style="display:flex">
       <div id="leaflet-map"></div>
+      <div id="map-hint">Click markers for details</div>
     </div>
 
     <!-- Live News TV -->
@@ -1651,8 +1633,6 @@ export function getDashboardHTML(): string {
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <!--  CDN Libraries                                                        -->
 <!-- ══════════════════════════════════════════════════════════════════════ -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.32.0/dist/globe.gl.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- ══════════════════════════════════════════════════════════════════════ -->
@@ -1763,14 +1743,8 @@ export function getDashboardHTML(): string {
   let activeSeverities = new Set(['info', 'low', 'medium', 'high', 'critical']);
   let disabledSources  = new Set();  // source IDs toggled off
   let activeTimeHours  = 0;          // 0 = all, else filter to last N hours
-  let currentMapMode   = 'globe';    // 'globe' | 'map'
+  let currentMapMode   = 'map';      // 'map' | 'livenews' | 'webcams' | 'digest'
   let summarySectionCollapsed = false;
-
-  // Globe state
-  let globe          = null;
-  let globeReady     = false;
-  let userInteracting = false;
-  let idleTimer      = null;
 
   // Leaflet state
   let leafletMap     = null;
@@ -1914,17 +1888,14 @@ export function getDashboardHTML(): string {
     currentMapMode = view;
 
     // Show/hide all view containers
-    $('globe-wrap').style.display      = view === 'globe'    ? ''     : 'none';
     $('map-wrap').style.display        = view === 'map'      ? 'flex' : 'none';
     $('livenews-wrap').style.display   = view === 'livenews' ? 'flex' : 'none';
     $('webcams-wrap').style.display    = view === 'webcams'  ? 'flex' : 'none';
     $('digest-wrap').style.display     = view === 'digest'   ? 'flex' : 'none';
 
-    // Keep map-hint visible only for globe/map views
+    // Keep map-hint visible only for map view
     if ($('map-hint')) {
-      $('map-hint').style.display = (view === 'globe' || view === 'map') ? '' : 'none';
-      if (view === 'globe') $('map-hint').textContent = 'Drag to rotate \u00b7 Scroll to zoom';
-      if (view === 'map')   $('map-hint').textContent = 'Click markers for details';
+      $('map-hint').style.display = view === 'map' ? '' : 'none';
     }
 
     // Update tab active states
@@ -1955,130 +1926,12 @@ export function getDashboardHTML(): string {
   //  Globe (globe.gl)
   // ═══════════════════════════════════════════════════════════════════
 
-  function initGlobe() {
-    if (typeof Globe === 'undefined') {
-      setTimeout(initGlobe, 500);
-      return;
-    }
-
-    const container = $('globe-el');
-
-    globe = Globe({ animateIn: true })(container);
-    globe
-      .width(container.clientWidth)
-      .height(container.clientHeight)
-      .backgroundColor('rgba(0,0,0,0)')
-      .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
-      .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-      .atmosphereColor('#1a3a7a')
-      .atmosphereAltitude(0.18)
-      .pointsData([])
-      .pointLat('lat')
-      .pointLng('lng')
-      .pointColor('color')
-      .pointRadius('radius')
-      .pointAltitude('altitude')
-      .pointResolution(8)
-      .onPointHover(handleGlobeHover)
-      .pointLabel(() => '')
-      // Arcs for correlations
-      .arcsData([])
-      .arcStartLat('startLat')
-      .arcStartLng('startLng')
-      .arcEndLat('endLat')
-      .arcEndLng('endLng')
-      .arcColor('color')
-      .arcAltitude(0.25)
-      .arcStroke(0.5)
-      .arcDashLength(0.4)
-      .arcDashGap(0.15)
-      .arcDashAnimateTime(2000);
-
-    // Auto-rotate
-    globe.controls().autoRotate      = true;
-    globe.controls().autoRotateSpeed = 0.35;
-    globe.controls().enableDamping   = true;
-    globe.controls().dampingFactor   = 0.08;
-
-    globe.controls().addEventListener('start', () => {
-      userInteracting = true;
-      globe.controls().autoRotate = false;
-      clearTimeout(idleTimer);
-    });
-    globe.controls().addEventListener('end', () => {
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        globe.controls().autoRotate = true;
-        userInteracting = false;
-      }, 5000);
-    });
-
-    window.addEventListener('resize', () => {
-      if (currentMapMode === 'globe') {
-        globe.width(container.clientWidth).height(container.clientHeight);
-      }
-    });
-
-    globeReady = true;
-    updateGlobe();
-  }
-
+  // Globe removed — 2D map is the primary view
+  function initGlobe() { /* no-op */ }
   function updateGlobe() {
-    if (!globeReady) return;
-
+    // Update point count in status bar from Leaflet data instead
     const geoItems = filteredItems().filter((it) => it.location);
-    const points   = geoItems.map((it) => ({
-      lat:      it.location.lat,
-      lng:      it.location.lon,
-      color:    SEV_COLOR[it.severity] || '#ffffff',
-      radius:   SEV_RADIUS[it.severity] || 0.35,
-      altitude: SEV_HEIGHT[it.severity] || 0.02,
-      item:     it,
-    }));
-
-    globe.pointsData(points);
-
-    // Build correlation arcs (items within same category within 2000 km)
-    const arcs = buildArcs(geoItems.slice(0, 60)); // cap for performance
-    globe.arcsData(arcs);
-
     $('ms-points').textContent = geoItems.length;
-  }
-
-  function buildArcs(items) {
-    const arcs = [];
-    const catGroups = {};
-    for (const it of items) {
-      if (!catGroups[it.category]) catGroups[it.category] = [];
-      catGroups[it.category].push(it);
-    }
-    for (const cat of Object.keys(catGroups)) {
-      const group = catGroups[cat];
-      for (let i = 0; i < group.length && i < 4; i++) {
-        for (let j = i + 1; j < group.length && j < 5; j++) {
-          const a = group[i]; const b = group[j];
-          if (!a.location || !b.location) continue;
-          const dist = haversine(a.location.lat, a.location.lon, b.location.lat, b.location.lon);
-          if (dist < 3000) {
-            const col = CAT_COLOR[cat] || '#ffffff';
-            arcs.push({
-              startLat: a.location.lat, startLng: a.location.lon,
-              endLat:   b.location.lat, endLng:   b.location.lon,
-              color:    [col + '88', col + '22'],
-            });
-          }
-        }
-      }
-    }
-    return arcs;
-  }
-
-  function haversine(lat1, lon1, lat2, lon2) {
-    const R   = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a   = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -2325,18 +2178,6 @@ export function getDashboardHTML(): string {
       tooltip.style.top  = Math.min(e.clientY - 10, window.innerHeight - 160) + 'px';
     }
   });
-
-  function handleGlobeHover(pt) {
-    if (!pt) { tooltip.style.display = 'none'; return; }
-    const it  = pt.item;
-    const col = SEV_COLOR[it.severity] || '#fff';
-    $('tt-sev').textContent   = it.severity.toUpperCase() + ' — ' + it.category.toUpperCase();
-    $('tt-sev').style.color   = col;
-    $('tt-title').textContent = it.title;
-    $('tt-meta').textContent  = it.source + ' · ' + timeAgo(it.timestamp) + (it.location?.name ? ' · ' + it.location.name : '');
-    $('tt-desc').textContent  = it.description.slice(0, 200) + (it.description.length > 200 ? '…' : '');
-    tooltip.style.display     = 'block';
-  }
 
   // ═══════════════════════════════════════════════════════════════════
   //  Render: Sources
@@ -3110,12 +2951,11 @@ export function getDashboardHTML(): string {
   async function boot() {
     initSectionHeights();
 
-    // Fetch data first — don't let globe init block the dashboard
     await fetchAll();
     connectSSE();
 
-    // Globe init is non-critical — don't crash boot if CDN failed
-    try { initGlobe(); } catch (e) { console.warn('Globe init failed:', e); }
+    // Init 2D map as primary view
+    initLeaflet();
 
     fetchMarketData();
 
