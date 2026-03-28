@@ -973,7 +973,7 @@ export function getDashboardHTML(): string {
     #summary-section {
       flex-shrink: 0;
       border-top: 1px solid var(--border);
-      max-height: 160px;
+      max-height: 400px;
       display: flex;
       flex-direction: column;
       transition: max-height 0.25s ease;
@@ -982,10 +982,10 @@ export function getDashboardHTML(): string {
     #summary-body {
       overflow-y: auto;
       flex: 1;
-      padding: 8px 12px 10px;
-      font-size: 0.68rem;
+      padding: 10px 14px 12px;
+      font-size: 0.78rem;
       color: var(--text-sec);
-      line-height: 1.6;
+      line-height: 1.7;
     }
     #summary-section.collapsed #summary-body { display: none; }
 
